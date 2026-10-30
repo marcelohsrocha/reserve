@@ -1,0 +1,36 @@
+# Sistema de Reservas de Salas – IPI Dourados
+# Uso: cp .env.example .env  (preencha)  →  docker compose up -d
+services:
+  app:
+    build: .
+    image: ipi-reservas:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: file:/app/data/reservas.db
+    volumes:
+      - dados:/app/data
+      # Credencial da Service Account do Google (arquivo fora do repositório).
+      - ./secrets/service-account.json:/app/secrets/service-account.json:ro
+    # Sem "ports": o app NÃO é exposto na rede da igreja; só o cloudflared o alcança.
+    # Para acessar localmente durante a instalação, descomente:
+    # ports:
+    #   - "127.0.0.1:3000:3000"
+    networks: [interna]
+
+  cloudflared:
+    image: cloudflare/cloudflared:2024.12.2
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
+    depends_on:
+      app:
+        condition: service_healthy
+    networks: [interna]
+
+volumes:
+  dados:
+
+networks:
+  interna:

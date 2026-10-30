@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="IPI Dourados">
+  <!-- Logo provisório: substitua por public/logo.svg (ou .png) oficial da igreja. -->
+  <rect width="64" height="64" rx="12" fill="#1f4e79"/>
+  <path d="M32 10v44M20 24h24" stroke="#fff" stroke-width="6" stroke-linecap="round"/>
+</svg>

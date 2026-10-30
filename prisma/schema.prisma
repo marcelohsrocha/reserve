@@ -1,0 +1,147 @@
+// Modelo de dados do Sistema de Reservas de Salas – IPI Dourados.
+// Todas as datas são gravadas em UTC; a exibição usa America/Campo_Grande.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Sala {
+  id           String    @id @default(cuid())
+  numero       Int       @unique
+  nome         String
+  andar        String
+  qrToken      String    @unique
+  ativa        Boolean   @default(true)
+  criadaEm     DateTime  @default(now())
+  desativadaEm DateTime?
+
+  reservas    Reserva[]
+  ocorrencias Ocorrencia[]
+  bloqueios   Bloqueio[]
+
+  @@index([ativa])
+}
+
+// Todo número que já existiu (inclusive de salas excluídas) – nunca é reaproveitado.
+model NumeroSalaUsado {
+  numero  Int      @id
+  usadoEm DateTime @default(now())
+}
+
+model Pessoa {
+  id           String    @id @default(cuid())
+  nome         String
+  telefoneE164 String    @unique
+  criadaEm     DateTime  @default(now())
+  reservas     Reserva[]
+}
+
+model Reserva {
+  id           String       @id @default(cuid())
+  salaId       String
+  pessoaId     String
+  titulo       String
+  dataInicio   String // AAAA-MM-DD (fuso local)
+  dataFim      String // AAAA-MM-DD (fuso local)
+  horaInicio   String // HH:MM
+  horaFim      String // HH:MM
+  diasSemana   String? // "0,2,4" (0 = domingo); null = todos os dias
+  criadoPor    String
+  criadaEm     DateTime     @default(now())
+  atualizadaEm DateTime     @updatedAt
+
+  sala        Sala         @relation(fields: [salaId], references: [id])
+  pessoa      Pessoa       @relation(fields: [pessoaId], references: [id])
+  ocorrencias Ocorrencia[]
+}
+
+// status: AGENDADA | EM_ANDAMENTO | CONFIRMADA | FINALIZADA | CANCELADA | NAO_COMPARECEU
+model Ocorrencia {
+  id            String    @id @default(cuid())
+  reservaId     String
+  salaId        String
+  inicioUtc     DateTime
+  fimUtc        DateTime
+  status        String    @default("AGENDADA")
+  checkinEm     DateTime?
+  googleEventId String?   @unique
+  criadaEm      DateTime  @default(now())
+  atualizadaEm  DateTime  @updatedAt
+
+  reserva Reserva @relation(fields: [reservaId], references: [id], onDelete: Cascade)
+  sala    Sala    @relation(fields: [salaId], references: [id])
+
+  @@index([salaId, inicioUtc])
+  @@index([status])
+}
+
+model Bloqueio {
+  id            String   @id @default(cuid())
+  salaId        String
+  inicioUtc     DateTime
+  fimUtc        DateTime
+  motivo        String
+  ativo         Boolean  @default(true) // false = cancelado pelo admin
+  googleEventId String?  @unique
+  criadoPor     String
+  criadoEm      DateTime @default(now())
+
+  sala Sala @relation(fields: [salaId], references: [id])
+
+  @@index([salaId, inicioUtc])
+}
+
+// Espelho local da agenda única do Google (mantido pelo sync incremental).
+// estado: VINCULADO | NAO_IDENTIFICADO | CANCELADO
+// tipo:   reserva | bloqueio | externo
+model EventoGoogle {
+  googleEventId String   @id
+  titulo        String
+  inicioUtc     DateTime
+  fimUtc        DateTime
+  salaNumero    Int?
+  tipo          String   @default("externo")
+  ocorrenciaId  String?
+  bloqueioId    String?
+  estado        String
+  atualizadoEm  DateTime @updatedAt
+
+  @@index([estado, inicioUtc])
+  @@index([salaNumero, inicioUtc])
+}
+
+model CorAndar {
+  andar   String @id
+  colorId String
+}
+
+// Linha única (id = 1).
+model Configuracao {
+  id                   Int       @id @default(1)
+  toleranciaCheckinMin Int       @default(15)
+  liberacaoAutomatica  Boolean   @default(true)
+  corPadrao            String    @default("8")
+  googleSyncToken      String?
+  watchChannelId       String?
+  watchResourceId      String?
+  watchExpiraEm        DateTime?
+  ultimoSyncEm         DateTime?
+}
+
+model Auditoria {
+  id         String   @id @default(cuid())
+  quem       String
+  acao       String
+  entidade   String
+  entidadeId String
+  detalhes   String? // JSON
+  em         DateTime @default(now())
+
+  @@index([entidade, entidadeId])
+  @@index([em])
+}
