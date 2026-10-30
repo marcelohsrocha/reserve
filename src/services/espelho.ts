@@ -11,7 +11,7 @@ export async function espelhar(
     tipo: 'reserva' | 'bloqueio' | 'externo';
     ocorrenciaId?: string | null;
     bloqueioId?: string | null;
-    estado: 'VINCULADO' | 'NAO_IDENTIFICADO' | 'CANCELADO' | 'IGNORADO';
+    estado: 'VINCULADO' | 'CANCELADO' | 'REMOVIDO';
   },
   tx: Tx = db,
 ) {

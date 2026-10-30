@@ -2,24 +2,23 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-const LINKS = [
-  ['/admin', 'Início'],
-  ['/admin/salas', 'Salas'],
-  ['/admin/reservas', 'Reservas'],
-  ['/admin/agenda', 'Agenda'],
-  ['/admin/pessoas', 'Pessoas'],
-  ['/admin/nao-identificados', 'Não identificados'],
-  ['/admin/qrcodes', 'QR Codes'],
-  ['/admin/configuracoes', 'Configurações'],
-  ['/admin/auditoria', 'Auditoria'],
-] as const;
+const LINKS: readonly (readonly [string, string, boolean])[] = [
+  ['/admin', 'Início', false],
+  ['/admin/salas', 'Salas', false],
+  ['/admin/reservas', 'Reservas', false],
+  ['/admin/agenda', 'Agenda', false],
+  ['/admin/pessoas', 'Pessoas', true],
+  ['/admin/qrcodes', 'QR Codes', true],
+  ['/admin/configuracoes', 'Configurações', true],
+  ['/admin/auditoria', 'Auditoria', true],
+];
 
-export function NavAdmin({ fila }: { fila: number }) {
+export function NavAdmin({ admin }: { admin: boolean }) {
   const caminho = usePathname();
   const ativo = (href: string) => (href === '/admin' ? caminho === '/admin' : caminho.startsWith(href));
   return (
     <nav className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-3 pb-3 text-sm">
-      {LINKS.map(([href, rotulo]) => (
+      {LINKS.filter(([, , soAdmin]) => admin || !soAdmin).map(([href, rotulo]) => (
         <Link
           key={href}
           href={href}
@@ -27,10 +26,7 @@ export function NavAdmin({ fila }: { fila: number }) {
             ativo(href) ? 'bg-slate-900 font-medium text-white' : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
-          {rotulo}
-          {href === '/admin/nao-identificados' && fila > 0 && (
-            <span className="ml-1.5 rounded-full bg-amber-400 px-1.5 text-xs font-bold text-slate-900">{fila}</span>
-          )}
+          {href === '/admin/reservas' && !admin ? 'Minhas reservas' : rotulo}
         </Link>
       ))}
     </nav>

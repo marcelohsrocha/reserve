@@ -10,26 +10,30 @@ interface Opcao {
 
 const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
+/** `pessoas` só vem para admins (reserva em nome de outra pessoa); membros reservam para si. */
 export function FormReserva({
   salas,
   pessoas,
+  eu,
   inicial,
 }: {
   salas: Opcao[];
-  pessoas: (Opcao & { busca: string })[];
+  pessoas: (Opcao & { busca: string })[] | null;
+  eu: Opcao;
   inicial: { salaId?: string; data?: string; inicio?: string; fim?: string };
 }) {
   const [estadoSalvar, salvar, salvando] = useActionState(acaoCriarReserva, null);
   const [estadoVerif, verificar, verificando] = useActionState(acaoVerificarReserva, null);
   const [busca, setBusca] = useState('');
-  const [pessoaId, setPessoaId] = useState('');
+  const [pessoaId, setPessoaId] = useState(eu.id);
   const [dataInicio, setDataInicio] = useState(inicial.data ?? '');
   const [dataFim, setDataFim] = useState(inicial.data ?? '');
 
   const filtradas = useMemo(() => {
     const q = busca.trim().toLowerCase();
     const qd = q.replace(/\D/g, '');
-    return q ? pessoas.filter((p) => p.busca.toLowerCase().includes(q) || (qd && p.busca.replace(/\D/g, '').includes(qd))) : pessoas;
+    const lista = pessoas ?? [];
+    return q ? lista.filter((p) => p.busca.toLowerCase().includes(q) || (qd && p.busca.replace(/\D/g, '').includes(qd))) : lista;
   }, [busca, pessoas]);
 
   const formRef = useRef<HTMLFormElement>(null);
@@ -53,6 +57,12 @@ export function FormReserva({
         </select>
       </div>
 
+      {pessoas === null ? (
+        <div>
+          <label className="rotulo">Responsável</label>
+          <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">{eu.rotulo} (você)</p>
+        </div>
+      ) : (
       <div>
         <label className="rotulo">Pessoa responsável</label>
         <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome ou telefone…" className="campo mb-2" />
@@ -62,6 +72,7 @@ export function FormReserva({
         </select>
         <a href="/admin/pessoas" target="_blank" className="mt-1 inline-block text-xs text-igreja underline">Cadastrar nova pessoa</a>
       </div>
+      )}
 
       <div>
         <label className="rotulo">Título / finalidade</label>

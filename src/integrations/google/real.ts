@@ -43,7 +43,15 @@ function corpo(d: Partial<DadosEvento>): calendar_v3.Schema$Event {
 export class AgendaGoogle implements CalendarGateway {
   private api: calendar_v3.Calendar;
 
-  constructor(private calendarId: string) {
+  /** Sem `api`: agenda única do sistema, acessada pela conta de serviço. */
+  constructor(
+    private calendarId: string,
+    api?: calendar_v3.Calendar,
+  ) {
+    if (api) {
+      this.api = api;
+      return;
+    }
     const c = credenciais();
     const auth = new google.auth.JWT({
       email: c.client_email,

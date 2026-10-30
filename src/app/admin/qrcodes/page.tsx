@@ -5,8 +5,10 @@ import { env } from '@/lib/env';
 import { codigoSala } from '@/domain/sala';
 import { FormAcao } from '@/components/FormAcao';
 import { acaoRegenerarQr } from '../acoes';
+import { exigirAdmin } from '@/lib/usuario';
 
 export default async function QrCodes() {
+  await exigirAdmin();
   const salas = await db.sala.findMany({ where: { ativa: true }, orderBy: { numero: 'asc' } });
   const qrs = await Promise.all(salas.map((s) => QRCode.toString(`${env.publicBaseUrl}/checkin/${s.qrToken}`, { type: 'svg', margin: 1 })));
   return (

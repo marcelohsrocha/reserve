@@ -33,12 +33,20 @@ model NumeroSalaUsado {
   usadoEm DateTime @default(now())
 }
 
+// Pessoa = usuário do sistema. Entra com a conta Google (e-mail) cadastrada pelo admin.
+// papel: MEMBRO | ADMIN
 model Pessoa {
-  id           String    @id @default(cuid())
-  nome         String
-  telefoneE164 String    @unique
-  criadaEm     DateTime  @default(now())
-  reservas     Reserva[]
+  id                 String    @id @default(cuid())
+  nome               String
+  email              String?   @unique
+  telefoneE164       String?   @unique // informado no primeiro acesso; usado no check-in
+  papel              String    @default("MEMBRO")
+  ativo              Boolean   @default(true)
+  googleRefreshToken String? // cifrado (AES-256-GCM); permite gravar na agenda pessoal
+  agendaConectadaEm  DateTime?
+  ultimoAcessoEm     DateTime?
+  criadaEm           DateTime  @default(now())
+  reservas           Reserva[]
 }
 
 model Reserva {
@@ -70,6 +78,9 @@ model Ocorrencia {
   status        String    @default("AGENDADA")
   checkinEm     DateTime?
   googleEventId String?   @unique
+  // Cópia do evento na agenda Google pessoal do responsável.
+  googleEventIdPessoal String?
+  pessoaAgendaId       String?
   criadaEm      DateTime  @default(now())
   atualizadaEm  DateTime  @updatedAt
 
@@ -96,9 +107,9 @@ model Bloqueio {
   @@index([salaId, inicioUtc])
 }
 
-// Espelho local da agenda única do Google (mantido pelo sync incremental).
-// estado: VINCULADO | NAO_IDENTIFICADO | CANCELADO
-// tipo:   reserva | bloqueio | externo
+// Espelho local dos eventos do sistema na agenda única do Google.
+// estado: VINCULADO | CANCELADO | REMOVIDO (evento sem identificação apagado pelo sistema)
+// tipo:   reserva | bloqueio | externo (só em registros REMOVIDO)
 model EventoGoogle {
   googleEventId String   @id
   titulo        String

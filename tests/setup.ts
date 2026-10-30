@@ -1,6 +1,6 @@
 import { beforeEach } from 'vitest';
 import { db } from '@/lib/db';
-import { agendaFalsa } from '@/integrations/google';
+import { agendaFalsa, agendasPessoaisFalsas } from '@/integrations/google';
 import { limparTentativas } from '@/lib/limite-taxa';
 
 beforeEach(async () => {
@@ -17,5 +17,6 @@ beforeEach(async () => {
     db.configuracao.deleteMany(),
   ]);
   agendaFalsa().reiniciar();
+  agendasPessoaisFalsas().clear();
   limparTentativas();
 });

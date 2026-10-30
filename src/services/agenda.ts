@@ -1,6 +1,5 @@
 import { db } from '@/lib/db';
 import { dataLocal, localParaUtc, somarDias } from '@/lib/tempo';
-import { semPrefixo } from '@/domain/prefixo';
 
 export interface SalaResumo {
   id: string;
@@ -10,10 +9,10 @@ export interface SalaResumo {
   ativa: boolean;
 }
 
-/** Item da agenda normalizado (reserva, bloqueio ou evento externo do Google). */
+/** Item da agenda normalizado (reserva ou bloqueio). */
 export interface ItemAgenda {
   chave: string;
-  tipo: 'reserva' | 'bloqueio' | 'google';
+  tipo: 'reserva' | 'bloqueio';
   inicio: Date;
   fim: Date;
   titulo: string;
@@ -22,15 +21,15 @@ export interface ItemAgenda {
   sala: SalaResumo;
   ocorrenciaId?: string;
   reservaId?: string;
+  pessoaId?: string;
 }
 
 /** Tudo que ocupa salas na janela (sem canceladas), opcionalmente de uma sala só. */
 export async function itensAgenda(inicio: Date, fim: Date, salaId?: string): Promise<ItemAgenda[]> {
   const salas = await db.sala.findMany({ where: salaId ? { id: salaId } : {} });
-  const porNumero = new Map(salas.map((s) => [s.numero, s]));
   const resumo = (s: (typeof salas)[number]): SalaResumo => ({ id: s.id, numero: s.numero, nome: s.nome, andar: s.andar, ativa: s.ativa });
 
-  const [ocorrencias, bloqueios, externos] = await Promise.all([
+  const [ocorrencias, bloqueios] = await Promise.all([
     db.ocorrencia.findMany({
       where: { inicioUtc: { lt: fim }, fimUtc: { gt: inicio }, status: { not: 'CANCELADA' }, ...(salaId && { salaId }) },
       include: { sala: true, reserva: { include: { pessoa: { select: { nome: true } } } } },
@@ -38,9 +37,6 @@ export async function itensAgenda(inicio: Date, fim: Date, salaId?: string): Pro
     db.bloqueio.findMany({
       where: { ativo: true, inicioUtc: { lt: fim }, fimUtc: { gt: inicio }, ...(salaId && { salaId }) },
       include: { sala: true },
-    }),
-    db.eventoGoogle.findMany({
-      where: { estado: 'VINCULADO', tipo: 'externo', inicioUtc: { lt: fim }, fimUtc: { gt: inicio }, salaNumero: { in: [...porNumero.keys()] } },
     }),
   ]);
 
@@ -56,6 +52,7 @@ export async function itensAgenda(inicio: Date, fim: Date, salaId?: string): Pro
       sala: resumo(o.sala),
       ocorrenciaId: o.id,
       reservaId: o.reservaId,
+      pessoaId: o.reserva.pessoaId,
     })),
     ...bloqueios.map((b) => ({
       chave: `b:${b.id}`,
@@ -66,16 +63,6 @@ export async function itensAgenda(inicio: Date, fim: Date, salaId?: string): Pro
       responsavel: null,
       status: null,
       sala: resumo(b.sala),
-    })),
-    ...externos.map((e) => ({
-      chave: `g:${e.googleEventId}`,
-      tipo: 'google' as const,
-      inicio: e.inicioUtc,
-      fim: e.fimUtc,
-      titulo: semPrefixo(e.titulo) || e.titulo,
-      responsavel: 'Google Agenda',
-      status: null,
-      sala: resumo(porNumero.get(e.salaNumero!)!),
     })),
   ];
   return itens.sort((a, b) => a.inicio.getTime() - b.inicio.getTime() || a.sala.numero - b.sala.numero);

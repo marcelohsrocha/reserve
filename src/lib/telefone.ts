@@ -14,19 +14,22 @@ function partes(e164: string) {
 }
 
 /** (67) 99999-1234 — uso exclusivo do admin. */
-export function formatarTelefone(e164: string): string {
+export function formatarTelefone(e164: string | null): string {
+  if (!e164) return 'sem telefone';
   const { ddd, numero } = partes(e164);
   const corte = numero.length - 4;
   return `(${ddd}) ${numero.slice(0, corte)}-${numero.slice(corte)}`;
 }
 
 /** (67) 9****-1234 — usado em painéis, check-in e Google Agenda (LGPD). */
-export function mascararTelefone(e164: string): string {
+export function mascararTelefone(e164: string | null): string {
+  if (!e164) return 'sem telefone';
   const { ddd, numero } = partes(e164);
   const corte = numero.length - 4;
   return `(${ddd}) ${numero[0]}${'*'.repeat(corte - 1)}-${numero.slice(corte)}`;
 }
 
-export function ultimos4(e164: string): string {
-  return e164.slice(-4);
+/** null quando a pessoa ainda não cadastrou o telefone (o check-in fica impossível). */
+export function ultimos4(e164: string | null): string | null {
+  return e164 ? e164.slice(-4) : null;
 }

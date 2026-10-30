@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { db } from '@/lib/db';
+import { exigirUsuario } from '@/lib/usuario';
 import { dataBR, horaLocal, DIAS_SEMANA, diaSemanaLocal, limitesDoDia } from '@/lib/tempo';
 import { codigoSala } from '@/domain/sala';
 import { ROTULO_STATUS, type StatusOcorrencia } from '@/domain/status';
@@ -15,6 +16,7 @@ const COR_STATUS: Record<string, string> = {
 
 export default async function Reservas({ searchParams }: { searchParams: Promise<{ sala?: string; historico?: string }> }) {
   const sp = await searchParams;
+  const u = await exigirUsuario();
   const historico = sp.historico === '1';
   const { inicio: hoje } = limitesDoDia(new Date());
   const [salas, ocorrencias] = await Promise.all([
@@ -22,6 +24,8 @@ export default async function Reservas({ searchParams }: { searchParams: Promise
     db.ocorrencia.findMany({
       where: {
         ...(sp.sala && { salaId: sp.sala }),
+        // Membros veem só as próprias reservas.
+        ...(!u.admin && { reserva: { pessoaId: u.id } }),
         ...(historico ? { inicioUtc: { lt: hoje } } : { fimUtc: { gte: hoje }, status: { not: 'CANCELADA' } }),
       },
       include: { sala: true, reserva: { include: { pessoa: true } } },
@@ -39,7 +43,7 @@ export default async function Reservas({ searchParams }: { searchParams: Promise
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="titulo-pagina mb-0">Reservas</h1>
+        <h1 className="titulo-pagina mb-0">{u.admin ? 'Reservas' : 'Minhas reservas'}</h1>
         <Link href="/admin/reservas/nova" className="btn-primario">+ Nova reserva</Link>
       </div>
       <form className="flex flex-wrap items-end gap-2">

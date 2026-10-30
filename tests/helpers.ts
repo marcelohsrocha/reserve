@@ -12,8 +12,8 @@ export async function cenario() {
   const s1 = await criarSala({ nome: 'Santuário', andar: 'Térreo' }, ADMIN);
   const s2 = await criarSala({ nome: 'Sala dos Jovens', andar: '1º andar' }, ADMIN);
   const s3 = await criarSala({ nome: 'Sala de Música', andar: '1º andar' }, ADMIN);
-  const ana = await criarPessoa({ nome: 'Ana Souza', telefone: '(67) 99999-1234' }, ADMIN);
-  const joao = await criarPessoa({ nome: 'João Lima', telefone: '(67) 98888-5678' }, ADMIN);
+  const ana = await criarPessoa({ nome: 'Ana Souza', email: 'ana@gmail.com', telefone: '(67) 99999-1234' }, ADMIN);
+  const joao = await criarPessoa({ nome: 'João Lima', email: 'joao@gmail.com', telefone: '(67) 98888-5678' }, ADMIN);
   return { s1, s2, s3, ana, joao };
 }
 

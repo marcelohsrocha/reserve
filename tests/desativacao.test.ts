@@ -59,13 +59,4 @@ describe('desativação de sala', () => {
     expect(ocs.every((o) => o.status === 'CANCELADA')).toBe(true);
     expect(ocs.every((o) => agendaFalsa().eventos.get(o.googleEventId!)?.cancelado)).toBe(true);
   });
-
-  it('eventos do Google com o prefixo da sala desativada vão para "não identificados"', async () => {
-    const { s3 } = await cenario();
-    agendaFalsa().criarManual('[S03] Estudo bíblico', t('19:00'), t('20:00'));
-    await sincronizar();
-    expect((await db.eventoGoogle.findFirstOrThrow({ where: { salaNumero: 3 } })).estado).toBe('VINCULADO');
-    await desativarSala(s3.id, undefined, ADMIN, t('08:00'));
-    expect((await db.eventoGoogle.findFirstOrThrow({ where: { salaNumero: 3 } })).estado).toBe('NAO_IDENTIFICADO');
-  });
 });

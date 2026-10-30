@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { db } from '@/lib/db';
+import { exigirUsuario } from '@/lib/usuario';
 import {
   DATA_VALIDA,
   DIAS_SEMANA,
@@ -43,6 +44,7 @@ export default async function AgendaDaSala({
 }) {
   const { id } = await params;
   const sp = await searchParams;
+  const u = await exigirUsuario();
   const sala = await db.sala.findUnique({ where: { id } });
   if (!sala) notFound();
 
@@ -93,9 +95,11 @@ export default async function AgendaDaSala({
           </div>
         </div>
         <div className="flex shrink-0 gap-2">
-          <Link href={`${base}/gerenciar`} className="btn-icone" aria-label="Gerenciar sala" title="Gerenciar sala (editar, QR, bloquear, desativar)">
-            <IconeAjustes className="h-5 w-5" />
-          </Link>
+          {u.admin && (
+            <Link href={`${base}/gerenciar`} className="btn-icone" aria-label="Gerenciar sala" title="Gerenciar sala (editar, QR, bloquear, desativar)">
+              <IconeAjustes className="h-5 w-5" />
+            </Link>
+          )}
           {sala.ativa && (
             <Link href={linkReservar} className="btn-primario hidden lg:inline-flex"><IconeMais className="h-4 w-4" /> Reservar</Link>
           )}
@@ -107,7 +111,8 @@ export default async function AgendaDaSala({
       )}
       {!sala.ativa && (
         <p className="rounded-2xl bg-slate-100 px-4 py-3 text-sm text-slate-600">
-          Esta sala está desativada: só o histórico é exibido. <Link href={`${base}/gerenciar`} className="font-medium underline">Reativar</Link>
+          Esta sala está desativada: só o histórico é exibido.{' '}
+          {u.admin && <Link href={`${base}/gerenciar`} className="font-medium underline">Reativar</Link>}
         </p>
       )}
 
@@ -172,7 +177,7 @@ export default async function AgendaDaSala({
             ) : (
               <ol className="relative">
                 {doDiaSel.map((i, idx) => (
-                  <ItemLinhaDoTempo key={i.chave} item={i} agora={agora} ultimo={idx === doDiaSel.length - 1} salaId={sala.id} />
+                  <ItemLinhaDoTempo key={i.chave} item={i} agora={agora} ultimo={idx === doDiaSel.length - 1} salaId={sala.id} admin={u.admin} meu={i.pessoaId === u.id} />
                 ))}
               </ol>
             )}
@@ -239,10 +244,26 @@ function Resumo({ valor, rotulo, alerta }: { valor: string | number; rotulo: str
   );
 }
 
-function ItemLinhaDoTempo({ item: i, agora, ultimo, salaId }: { item: ItemAgenda; agora: Date; ultimo: boolean; salaId: string }) {
+function ItemLinhaDoTempo({
+  item: i,
+  agora,
+  ultimo,
+  salaId,
+  admin,
+  meu,
+}: {
+  item: ItemAgenda;
+  agora: Date;
+  ultimo: boolean;
+  salaId: string;
+  admin: boolean;
+  meu: boolean;
+}) {
   const fase = faseDo(i, agora);
+  // Membros só liberam/cancelam as próprias reservas.
+  const pode = admin || meu;
   const progresso = fase === 'agora' ? Math.min(100, ((agora.getTime() - i.inicio.getTime()) / (i.fim.getTime() - i.inicio.getTime())) * 100) : 0;
-  const ativa = i.tipo === 'reserva' && i.status && STATUS_ATIVOS.includes(i.status as StatusOcorrencia);
+  const ativa = pode && i.tipo === 'reserva' && i.status && STATUS_ATIVOS.includes(i.status as StatusOcorrencia);
   const apagado = fase === 'passado';
 
   return (
@@ -264,7 +285,7 @@ function ItemLinhaDoTempo({ item: i, agora, ultimo, salaId }: { item: ItemAgenda
       <div className="min-w-0 pr-2">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className={`text-base font-bold ${apagado ? 'text-slate-400' : fase === 'agora' ? 'text-slate-900' : 'text-slate-700'}`}>{i.titulo}</h3>
-          {i.status ? <StatusOcorrenciaPill status={i.status} /> : i.tipo === 'google' ? <span className="etiqueta bg-slate-100 text-slate-500">Google Agenda</span> : null}
+          {i.status && <StatusOcorrenciaPill status={i.status} />}
         </div>
         <ul className={`mt-1 space-y-0.5 text-sm ${apagado ? 'text-slate-400' : 'text-slate-600'}`}>
           {i.responsavel && <li className="flex items-center gap-2"><IconePessoa className="h-4 w-4 text-igreja-vivo" />{i.responsavel}</li>}
@@ -279,7 +300,7 @@ function ItemLinhaDoTempo({ item: i, agora, ultimo, salaId }: { item: ItemAgenda
           </div>
         )}
 
-        {(ativa || i.reservaId || i.tipo === 'bloqueio') && (
+        {(ativa || (pode && i.reservaId) || (admin && i.tipo === 'bloqueio')) && (
           <div className="mt-3 flex flex-wrap gap-2">
             {ativa && fase === 'agora' && (
               <FormAcao inline acao={acaoLiberarSala} botao="Liberar sala agora" classeBotao="btn-verde" confirmar={`Encerrar "${i.titulo}" agora e liberar a sala?`}>
@@ -291,8 +312,8 @@ function ItemLinhaDoTempo({ item: i, agora, ultimo, salaId }: { item: ItemAgenda
                 <input type="hidden" name="id" value={i.ocorrenciaId} />
               </FormAcao>
             )}
-            {i.reservaId && <Link href={`/admin/reservas/${i.reservaId}`} className="btn-secundario">Detalhes</Link>}
-            {i.tipo === 'bloqueio' && <Link href={`/admin/salas/${salaId}/gerenciar`} className="btn-secundario">Gerenciar bloqueio</Link>}
+            {pode && i.reservaId && <Link href={`/admin/reservas/${i.reservaId}`} className="btn-secundario">Detalhes</Link>}
+            {admin && i.tipo === 'bloqueio' && <Link href={`/admin/salas/${salaId}/gerenciar`} className="btn-secundario">Gerenciar bloqueio</Link>}
           </div>
         )}
       </div>

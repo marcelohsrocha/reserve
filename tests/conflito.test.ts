@@ -46,26 +46,29 @@ describe('detecção de conflito por sala na agenda única', () => {
     expect(eventos[0].descricao).not.toContain('99999-1234');
   });
 
-  it('bloqueia contra evento criado direto no Google com [S02], mas não outras salas', async () => {
-    const { s2, s3, ana } = await cenario();
+  it('eventos criados fora do sistema não bloqueiam nenhuma sala, nem com [Snn] ou salaNumero', async () => {
+    const { s1, s2, ana } = await cenario();
     agendaFalsa().criarManual('[s2] Reunião de diáconos', t('19:30'), t('20:30'));
-    await expect(reservar(s2.id, ana.id, '19:00', '21:00')).rejects.toThrow(ErroConflito);
-    await expect(reservar(s3.id, ana.id, '19:00', '21:00')).resolves.toBeTruthy();
-  });
-
-  it('reconhece evento do Google pela propriedade privada salaNumero', async () => {
-    const { s1, ana } = await cenario();
     agendaFalsa().criarManual('Culto sem prefixo', t('19:30'), t('20:30'), { salaNumero: '1' });
-    await expect(reservar(s1.id, ana.id, '19:00', '21:00')).rejects.toThrow(ErroConflito);
+    expect(await verificarConflitos(2, [{ inicio: t('19:00'), fim: t('21:00') }])).toHaveLength(0);
+    await expect(reservar(s1.id, ana.id, '19:00', '21:00')).resolves.toBeTruthy();
+    await expect(reservar(s2.id, ana.id, '19:00', '21:00')).resolves.toBeTruthy();
   });
 
-  it('eventos sem prefixo ou de sala desativada não bloqueiam nenhuma sala', async () => {
-    const { s1, s3, ana } = await cenario();
-    agendaFalsa().criarManual('Reunião geral', t('19:00'), t('21:00'));
+  it('confere ao vivo no Google: evento do sistema ainda não sincronizado também bloqueia', async () => {
+    const { s1, ana } = await cenario();
+    const r = await reservar(s1.id, ana.id, '19:00', '21:00');
+    // Simula o banco local sem a ocorrência ativa enquanto o Google ainda tem o evento.
+    const [oc] = r.ocorrencias;
+    agendaFalsa().criarManual('[S01] Cópia', t('19:00'), t('21:00'), { salaNumero: '1', ocorrenciaId: 'outra-ocorrencia' });
+    expect(await verificarConflitos(1, [{ inicio: t('20:00'), fim: t('22:00') }], { ocorrenciaIds: new Set([oc.id]) })).toHaveLength(1);
+  });
+
+  it('eventos de sala desativada não bloqueiam', async () => {
+    const { s3 } = await cenario();
     await desativarSala(s3.id, undefined, ADMIN, t('08:00'));
-    agendaFalsa().criarManual('[S03] Antiga', t('19:00'), t('21:00'));
+    agendaFalsa().criarManual('[S03] Antiga', t('19:00'), t('21:00'), { salaNumero: '3', bloqueioId: 'x' });
     expect(await verificarConflitos(3, [{ inicio: t('19:00'), fim: t('21:00') }])).toHaveLength(0);
-    await expect(reservar(s1.id, ana.id, '19:00', '21:00')).resolves.toBeTruthy();
   });
 
   it('bloqueia contra um bloqueio por período', async () => {

@@ -19,7 +19,7 @@ describe('estatísticas do painel admin', () => {
 
   it('ranking de pessoas conta usos e faltas, ignorando canceladas', async () => {
     const { s1, s2, ana, joao } = await cenario();
-    const maria = await criarPessoa({ nome: 'Maria', telefone: '(67) 97777-0000' }, ADMIN);
+    const maria = await criarPessoa({ nome: 'Maria', email: 'maria@gmail.com', telefone: '(67) 97777-0000' }, ADMIN);
     await reservar(s1.id, ana.id, '08:00', '09:00', { dataFim: '2030-11-06' }); // 3 usos
     const rj = await reservar(s2.id, joao.id, '08:00', '09:00');
     await db.ocorrencia.updateMany({ where: { reservaId: rj.id }, data: { status: 'NAO_COMPARECEU' } });

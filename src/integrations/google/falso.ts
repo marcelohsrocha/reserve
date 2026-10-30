@@ -53,7 +53,7 @@ export class AgendaFalsa implements CalendarGateway {
   async atualizar(id: string, d: Partial<DadosEvento>) {
     this.chamadas.push('patch');
     const e = this.eventos.get(id);
-    if (!e || e.cancelado) throw new Error(`Evento ${id} não encontrado`);
+    if (!e || e.cancelado) throw Object.assign(new Error(`Evento ${id} não encontrado`), { code: 404 });
     Object.assign(e, {
       ...(d.titulo !== undefined && { titulo: d.titulo }),
       ...(d.inicio && { inicio: d.inicio }),

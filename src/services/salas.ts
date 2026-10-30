@@ -11,7 +11,6 @@ import { ocorrenciasFuturasDaSala } from './reservas';
 import { resolverOcorrencias, type Resolucao } from './resolucao';
 import { marcarEspelhoCancelado } from './espelho';
 import { emParalelo } from '@/lib/trava';
-import { reprocessarNaoIdentificados } from './sincronizacao';
 
 export const novoQrToken = () => randomBytes(18).toString('base64url');
 
@@ -138,11 +137,6 @@ export async function desativarSala(id: string, resolucao: Resolucao | undefined
   }
 
   await db.sala.update({ where: { id }, data: { ativa: false, desativadaEm: agora } });
-  // Eventos do Google com o prefixo desta sala vão para a fila "Eventos não identificados".
-  await db.eventoGoogle.updateMany({
-    where: { salaNumero: sala.numero, estado: 'VINCULADO', tipo: 'externo' },
-    data: { estado: 'NAO_IDENTIFICADO' },
-  });
   await auditar(quem, 'desativar', 'sala', id, { numero: sala.numero, ...resultado, resolucao: resolucao?.acao ?? null });
   publicar('salas');
   return resultado;
@@ -156,7 +150,6 @@ export async function reativarSala(id: string, quem: string) {
   // Mesmo número, QR NOVO: o QR antigo continua inválido.
   const reativada = await db.sala.update({ where: { id }, data: { ativa: true, desativadaEm: null, qrToken: novoQrToken() } });
   await auditar(quem, 'reativar', 'sala', id, { numero: sala.numero });
-  await reprocessarNaoIdentificados();
   publicar('salas');
   return reativada;
 }

@@ -1,15 +1,12 @@
 import Link from 'next/link';
-import { db } from '@/lib/db';
-import { usuarioAtual } from '@/lib/usuario';
+import { exigirUsuario } from '@/lib/usuario';
 import { NavAdmin } from './NavAdmin';
+import { MenuConta } from './MenuConta';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const [usuario, fila] = await Promise.all([
-    usuarioAtual(),
-    db.eventoGoogle.count({ where: { estado: 'NAO_IDENTIFICADO', fimUtc: { gt: new Date() } } }),
-  ]);
+  const u = await exigirUsuario();
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-20 border-b border-slate-100 bg-white/90 backdrop-blur print:hidden">
@@ -22,13 +19,21 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             </span>
           </Link>
           <div className="flex items-center gap-1 text-sm">
-            <Link href="/painel" className="rounded-full px-3 py-1.5 text-slate-600 hover:bg-slate-100">Painel</Link>
-            <Link href="/disponiveis" className="rounded-full px-3 py-1.5 text-slate-600 hover:bg-slate-100">Disponíveis</Link>
-            <span className="ml-2 hidden max-w-[14rem] truncate rounded-full bg-slate-100 px-3 py-1.5 text-xs text-slate-500 md:inline">{usuario}</span>
+            <Link href="/painel" className="hidden rounded-full px-3 py-1.5 text-slate-600 hover:bg-slate-100 sm:inline">Painel</Link>
+            <Link href="/disponiveis" className="hidden rounded-full px-3 py-1.5 text-slate-600 hover:bg-slate-100 sm:inline">Disponíveis</Link>
+            <MenuConta nome={u.nome} email={u.email!} admin={u.admin} agendaConectada={Boolean(u.googleRefreshToken)} />
           </div>
         </div>
-        <NavAdmin fila={fila} />
+        <NavAdmin admin={u.admin} />
       </header>
+      {!u.googleRefreshToken && (
+        <div className="mx-auto max-w-7xl px-4 pt-4 sm:px-6 print:hidden">
+          <a href="/api/auth/google?consentir=1" className="flex items-center gap-3 rounded-2xl bg-sky-50 px-4 py-3 text-sm text-sky-900 ring-1 ring-sky-200">
+            <span className="text-lg">📅</span>
+            <span><strong>Conecte a sua Agenda Google</strong> para que as suas reservas apareçam nela automaticamente.</span>
+          </a>
+        </div>
+      )}
       <main className="mx-auto max-w-7xl p-4 sm:p-6 print:max-w-none print:p-0">{children}</main>
     </div>
   );

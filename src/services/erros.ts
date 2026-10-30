@@ -15,6 +15,6 @@ export class ErroConflito extends ErroNegocio {
 }
 
 export function descreverConflito(c: Conflito): string {
-  const origem = c.com.origem === 'bloqueio' ? 'bloqueio' : c.com.origem === 'google' ? 'evento do Google' : 'reserva';
+  const origem = c.com.origem === 'bloqueio' ? 'bloqueio' : 'reserva';
   return `${dataBR(c.pedido.inicio)} ${horaLocal(c.pedido.inicio)}–${horaLocal(c.pedido.fim)}: conflita com ${origem} "${c.com.titulo}" (${horaLocal(c.com.inicio)}–${horaLocal(c.com.fim)})`;
 }

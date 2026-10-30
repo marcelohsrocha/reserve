@@ -1,32 +1,22 @@
 import { randomUUID } from 'node:crypto';
-import type { Sala } from '@prisma/client';
 import { db } from '@/lib/db';
 import { auditar } from '@/lib/auditoria';
 import { publicar } from '@/lib/barramento';
 import { comTrava } from '@/lib/trava';
 import { env } from '@/lib/env';
 import { agenda, SyncTokenInvalido, type EventoAgenda } from '@/integrations/google';
-import { lerPrefixo, tituloPadronizado } from '@/domain/prefixo';
-import { locationSala } from '@/domain/sala';
 import { STATUS_ATIVOS } from '@/domain/status';
-import { corDoAndar, obterConfiguracao } from './configuracao';
+import { obterConfiguracao } from './configuracao';
 import { espelhar } from './espelho';
-import { ErroConflito, ErroNegocio } from './erros';
-import { verificarConflitos } from './ocupacao';
+import { atualizarCopiasPessoais } from './agenda-pessoal';
 
 const SISTEMA = 'google-agenda';
 
-/** Padroniza um evento externo para a sala: título [Snn], location, cor e salaNumero. */
-async function padronizarEvento(id: string, titulo: string, sala: Sala) {
-  await agenda().atualizar(id, {
-    titulo: tituloPadronizado(sala.numero, titulo),
-    location: locationSala(sala),
-    colorId: await corDoAndar(sala.andar),
-    privado: { salaNumero: String(sala.numero), tipo: 'externo' },
-  });
-}
-
-/** Processa um evento recebido do Google (sync incremental). Devolve true se algo mudou. */
+/**
+ * Processa um evento recebido do Google (sync incremental). Devolve true se algo mudou.
+ * Só o sistema cria eventos na agenda única: os eventos dele são reconhecidos pelas propriedades
+ * privadas ocorrenciaId/bloqueioId (ou pelo googleEventId gravado).
+ */
 export async function processarEvento(ev: EventoAgenda, agora = new Date()): Promise<boolean> {
   const existente = await db.eventoGoogle.findUnique({ where: { googleEventId: ev.id } });
   const ocorrencia = ev.privado.ocorrenciaId
@@ -37,11 +27,14 @@ export async function processarEvento(ev: EventoAgenda, agora = new Date()): Pro
     : await db.bloqueio.findUnique({ where: { googleEventId: ev.id } });
 
   if (ev.cancelado) {
+    // Eco da remoção de um evento sem identificação: continua registrado como REMOVIDO.
+    if (existente?.estado === 'REMOVIDO') return false;
     if (existente) await db.eventoGoogle.update({ where: { googleEventId: ev.id }, data: { estado: 'CANCELADO' } });
     // Evento do sistema apagado direto no Google: o Google é a fonte da verdade.
     if (ocorrencia && STATUS_ATIVOS.includes(ocorrencia.status as never) && ocorrencia.fimUtc > agora) {
       await db.ocorrencia.update({ where: { id: ocorrencia.id }, data: { status: 'CANCELADA' } });
       await auditar(SISTEMA, 'cancelar', 'ocorrencia', ocorrencia.id, { motivo: 'evento removido no Google Agenda' });
+      await atualizarCopiasPessoais([ocorrencia.id]);
     }
     if (bloqueio?.ativo) {
       await db.bloqueio.update({ where: { id: bloqueio.id }, data: { ativo: false } });
@@ -56,6 +49,7 @@ export async function processarEvento(ev: EventoAgenda, agora = new Date()): Pro
     if (mudouHorario && STATUS_ATIVOS.includes(ocorrencia.status as never)) {
       await db.ocorrencia.update({ where: { id: ocorrencia.id }, data: { inicioUtc: ev.inicio, fimUtc: ev.fim } });
       await auditar(SISTEMA, 'remarcar', 'ocorrencia', ocorrencia.id, { inicio: ev.inicio, fim: ev.fim, motivo: 'alterado no Google Agenda' });
+      await atualizarCopiasPessoais([ocorrencia.id]);
     }
     await espelhar(ev.id, {
       titulo: ev.titulo,
@@ -85,21 +79,25 @@ export async function processarEvento(ev: EventoAgenda, agora = new Date()): Pro
     return mudou || !existente;
   }
 
-  // Evento externo (criado direto no Google): identifica pela propriedade ou pelo prefixo [Snn].
-  const numero = ev.privado.salaNumero ? Number(ev.privado.salaNumero) : lerPrefixo(ev.titulo);
-  const sala = numero ? await db.sala.findFirst({ where: { numero, ativa: true } }) : null;
-  const base = { titulo: ev.titulo, inicioUtc: ev.inicio, fimUtc: ev.fim, salaNumero: numero, tipo: 'externo' as const };
-
-  if (sala) {
-    if (!ev.privado.salaNumero || ev.titulo !== tituloPadronizado(sala.numero, ev.titulo)) {
-      await padronizarEvento(ev.id, ev.titulo, sala);
-      base.titulo = tituloPadronizado(sala.numero, ev.titulo);
-    }
-    await espelhar(ev.id, { ...base, estado: 'VINCULADO' });
-  } else {
-    const estado = existente?.estado === 'IGNORADO' ? 'IGNORADO' : 'NAO_IDENTIFICADO';
-    await espelhar(ev.id, { ...base, estado });
-  }
+  // Evento sem identificação (criado direto no Google, fora do sistema): todo evento precisa
+  // ter sala e responsável, então ele é apagado da agenda única e o fato fica na auditoria.
+  // Eventos que já terminaram são histórico e ficam como estão.
+  if (ev.fim <= agora) return false;
+  await agenda().remover(ev.id);
+  await espelhar(ev.id, {
+    titulo: ev.titulo,
+    inicioUtc: ev.inicio,
+    fimUtc: ev.fim,
+    salaNumero: ev.privado.salaNumero ? Number(ev.privado.salaNumero) || null : null,
+    tipo: 'externo',
+    estado: 'REMOVIDO',
+  });
+  await auditar(SISTEMA, 'remover_evento_sem_identificacao', 'evento_google', ev.id, {
+    titulo: ev.titulo,
+    inicio: ev.inicio,
+    fim: ev.fim,
+    motivo: 'evento criado fora do Sistema de Reservas',
+  });
   return true;
 }
 
@@ -139,55 +137,6 @@ export function agendarSincronizacao(atrasoMs = 1500) {
     agendado = null;
     sincronizar().catch((e) => console.error('[sync] erro', e));
   }, atrasoMs);
-}
-
-/** Vincula com 1 clique um evento da fila "não identificados" a uma sala ativa. */
-export async function vincularEvento(googleEventId: string, salaId: string, quem: string) {
-  const ev = await db.eventoGoogle.findUnique({ where: { googleEventId } });
-  if (!ev || (ev.estado !== 'NAO_IDENTIFICADO' && ev.estado !== 'IGNORADO')) throw new ErroNegocio('Evento não está na fila.');
-  const sala = await db.sala.findUnique({ where: { id: salaId } });
-  if (!sala?.ativa) throw new ErroNegocio('Sala inválida ou desativada.');
-  return comTrava(`sala:${sala.id}`, async () => {
-    const conflitos = await verificarConflitos(sala.numero, [{ inicio: ev.inicioUtc, fim: ev.fimUtc }]);
-    if (conflitos.length) throw new ErroConflito(conflitos);
-    await padronizarEvento(googleEventId, ev.titulo, sala);
-    await espelhar(googleEventId, {
-      titulo: tituloPadronizado(sala.numero, ev.titulo),
-      inicioUtc: ev.inicioUtc,
-      fimUtc: ev.fimUtc,
-      salaNumero: sala.numero,
-      tipo: 'externo',
-      estado: 'VINCULADO',
-    });
-    await auditar(quem, 'vincular', 'evento_google', googleEventId, { sala: sala.numero, titulo: ev.titulo });
-    publicar('google');
-  });
-}
-
-export async function ignorarEvento(googleEventId: string, quem: string) {
-  await db.eventoGoogle.update({ where: { googleEventId }, data: { estado: 'IGNORADO' } });
-  await auditar(quem, 'ignorar', 'evento_google', googleEventId);
-  publicar('google');
-}
-
-/** Ao reativar uma sala, os eventos da fila com o número dela voltam a ser vinculados. */
-export async function reprocessarNaoIdentificados(agora = new Date()) {
-  const pendentes = await db.eventoGoogle.findMany({
-    where: { estado: 'NAO_IDENTIFICADO', salaNumero: { not: null }, fimUtc: { gt: agora } },
-  });
-  for (const ev of pendentes) {
-    const sala = await db.sala.findFirst({ where: { numero: ev.salaNumero!, ativa: true } });
-    if (!sala) continue;
-    try {
-      await padronizarEvento(ev.googleEventId, ev.titulo, sala);
-      await db.eventoGoogle.update({
-        where: { googleEventId: ev.googleEventId },
-        data: { estado: 'VINCULADO', titulo: tituloPadronizado(sala.numero, ev.titulo) },
-      });
-    } catch (e) {
-      console.error('[sync] falha ao revincular', ev.googleEventId, e);
-    }
-  }
 }
 
 /** Cria/renova o canal events.watch antes de expirar (24 h de folga). */

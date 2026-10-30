@@ -2,7 +2,6 @@ import { db } from '@/lib/db';
 import { situacaoSala, type ItemAgenda, type EstadoSala } from '@/domain/painel';
 import { codigoSala } from '@/domain/sala';
 import { STATUS_ATIVOS } from '@/domain/status';
-import { semPrefixo } from '@/domain/prefixo';
 
 const HORIZONTE_MS = 14 * 86_400_000;
 
@@ -47,20 +46,15 @@ const serial = (i: ItemAgenda | null): ItemPainel | null =>
 export async function obterPainel(agora = new Date()): Promise<DadosPainel> {
   const ate = new Date(agora.getTime() + HORIZONTE_MS);
   const salas = await db.sala.findMany({ where: { ativa: true }, orderBy: { numero: 'asc' } });
-  const numeros = salas.map((s) => s.numero);
-  const [ocorrencias, bloqueios, externos] = await Promise.all([
+  const [ocorrencias, bloqueios] = await Promise.all([
     db.ocorrencia.findMany({
       where: { status: { in: STATUS_ATIVOS }, fimUtc: { gt: agora }, inicioUtc: { lt: ate }, salaId: { in: salas.map((s) => s.id) } },
       include: { reserva: { include: { pessoa: { select: { nome: true } } } } },
     }),
     db.bloqueio.findMany({ where: { ativo: true, fimUtc: { gt: agora }, inicioUtc: { lt: ate } } }),
-    db.eventoGoogle.findMany({
-      where: { estado: 'VINCULADO', tipo: 'externo', salaNumero: { in: numeros }, fimUtc: { gt: agora }, inicioUtc: { lt: ate } },
-    }),
   ]);
 
   const porSala = new Map<string, ItemAgenda[]>(salas.map((s) => [s.id, []]));
-  const idPorNumero = new Map(salas.map((s) => [s.numero, s.id]));
   for (const o of ocorrencias) {
     porSala.get(o.salaId)?.push({
       tipo: 'reserva',
@@ -73,10 +67,6 @@ export async function obterPainel(agora = new Date()): Promise<DadosPainel> {
   }
   for (const b of bloqueios) {
     porSala.get(b.salaId)?.push({ tipo: 'bloqueio', inicio: b.inicioUtc, fim: b.fimUtc, titulo: b.motivo });
-  }
-  for (const e of externos) {
-    const id = idPorNumero.get(e.salaNumero!);
-    if (id) porSala.get(id)!.push({ tipo: 'google', inicio: e.inicioUtc, fim: e.fimUtc, titulo: semPrefixo(e.titulo) || e.titulo, responsavel: 'Google Agenda' });
   }
 
   const grupos = new Map<string, CardSala[]>();

@@ -3,8 +3,10 @@ import { andaresUsados } from '@/services/configuracao';
 import { FormAcao } from '@/components/FormAcao';
 import { acaoCriarSala } from '../../acoes';
 import { codigoSala } from '@/domain/sala';
+import { exigirAdmin } from '@/lib/usuario';
 
 export default async function NovaSala() {
+  await exigirAdmin();
   const [numero, andares] = await Promise.all([proximoNumero(), andaresUsados()]);
   return (
     <div className="mx-auto max-w-lg space-y-4">

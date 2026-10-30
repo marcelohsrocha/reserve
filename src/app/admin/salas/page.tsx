@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { listarSalas } from '@/services/salas';
+import { exigirUsuario } from '@/lib/usuario';
 import { codigoSala } from '@/domain/sala';
 import { dataBR } from '@/lib/tempo';
 
@@ -7,13 +8,14 @@ const FILTROS = { ativas: 'Ativas', desativadas: 'Desativadas', todas: 'Todas' }
 
 export default async function Salas({ searchParams }: { searchParams: Promise<{ filtro?: string }> }) {
   const sp = await searchParams;
+  const u = await exigirUsuario();
   const filtro = (sp.filtro && sp.filtro in FILTROS ? sp.filtro : 'ativas') as keyof typeof FILTROS;
   const salas = await listarSalas(filtro);
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="titulo-pagina mb-0">Salas</h1>
-        <Link href="/admin/salas/nova" className="btn-primario">+ Nova sala</Link>
+        {u.admin && <Link href="/admin/salas/nova" className="btn-primario">+ Nova sala</Link>}
       </div>
       <div className="flex gap-1">
         {Object.entries(FILTROS).map(([k, v]) => (
@@ -23,7 +25,7 @@ export default async function Salas({ searchParams }: { searchParams: Promise<{ 
       {salas.length === 0 ? (
         <div className="cartao text-slate-600">
           Nenhuma sala {filtro === 'todas' ? 'cadastrada' : filtro === 'ativas' ? 'ativa' : 'desativada'}.{' '}
-          {filtro !== 'desativadas' && <Link href="/admin/salas/nova" className="text-igreja underline">Cadastre sua primeira sala</Link>}
+          {u.admin && filtro !== 'desativadas' && <Link href="/admin/salas/nova" className="text-igreja underline">Cadastre sua primeira sala</Link>}
         </div>
       ) : (
         <div className="cartao overflow-x-auto p-0">
@@ -48,7 +50,7 @@ export default async function Salas({ searchParams }: { searchParams: Promise<{ 
                   <td className="text-right">
                     <span className="inline-flex gap-1">
                       <Link href={`/admin/salas/${s.id}`} className="btn-secundario">Agenda</Link>
-                      <Link href={`/admin/salas/${s.id}/gerenciar`} className="btn-secundario">Gerenciar</Link>
+                      {u.admin && <Link href={`/admin/salas/${s.id}/gerenciar`} className="btn-secundario">Gerenciar</Link>}
                     </span>
                   </td>
                 </tr>

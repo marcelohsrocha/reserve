@@ -4,6 +4,7 @@ import { publicar } from '@/lib/barramento';
 import { agenda } from '@/integrations/google';
 import { proximoStatus, STATUS_ATIVOS } from '@/domain/status';
 import { obterConfiguracao } from './configuracao';
+import { atualizarCopiasPessoais } from './agenda-pessoal';
 
 const SISTEMA = 'sistema';
 
@@ -17,6 +18,7 @@ export async function atualizarStatus(agora = new Date()) {
     where: { status: { in: STATUS_ATIVOS }, inicioUtc: { lte: agora } },
   });
   let mudancas = 0;
+  const faltas: string[] = [];
   for (const o of candidatas) {
     const novo = proximoStatus(o, agora, cfg);
     if (!novo) continue;
@@ -34,8 +36,12 @@ export async function atualizarStatus(agora = new Date()) {
         }
       }
       await auditar(SISTEMA, 'nao_compareceu', 'ocorrencia', o.id, { toleranciaMin: cfg.toleranciaCheckinMin });
+      faltas.push(o.id);
     }
   }
+
+  // Sem check-in a reserva caiu: a cópia some da agenda pessoal do responsável.
+  await atualizarCopiasPessoais(faltas);
 
   // Bloqueios que começaram ou terminaram desde o último minuto.
   const umMinutoAtras = new Date(agora.getTime() - 61_000);

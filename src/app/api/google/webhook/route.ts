@@ -12,7 +12,7 @@ function tokenValido(recebido: string | null) {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-/** Notificação do canal events.watch. Rota pública (bypass no Access), validada pelo token do canal. */
+/** Notificação do canal events.watch. Rota pública (sem login), validada pelo token do canal. */
 export async function POST(req: Request) {
   if (!tokenValido(req.headers.get('x-goog-channel-token'))) return new Response('token inválido', { status: 401 });
   // "sync" é a mensagem inicial de criação do canal; qualquer outra indica mudança na agenda.

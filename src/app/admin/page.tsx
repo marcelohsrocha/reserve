@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { db } from '@/lib/db';
+import { exigirUsuario } from '@/lib/usuario';
 import { DATA_VALIDA, dataLocal, dataPorExtenso, horaLocal, limitesDoDia, localParaUtc, somarDias } from '@/lib/tempo';
 import { codigoSala } from '@/domain/sala';
 import { obterPainel } from '@/services/painel';
@@ -15,8 +16,9 @@ import { acaoSincronizarAgora } from './acoes';
 
 const fmtHoraBR = (d: Date) => d.toLocaleString('pt-BR', { timeZone: 'America/Campo_Grande', dateStyle: 'short', timeStyle: 'short' });
 
-export default async function AdminInicio({ searchParams }: { searchParams: Promise<{ mes?: string; dia?: string }> }) {
+export default async function AdminInicio({ searchParams }: { searchParams: Promise<{ mes?: string; dia?: string; semPermissao?: string }> }) {
   const sp = await searchParams;
+  const u = await exigirUsuario();
   const agora = new Date();
   const hoje = dataLocal(agora);
   const dia = sp.dia && DATA_VALIDA.test(sp.dia) ? sp.dia : hoje;
@@ -27,22 +29,27 @@ export default async function AdminInicio({ searchParams }: { searchParams: Prom
     return (
       <div className="cartao mx-auto mt-10 max-w-lg space-y-4 text-center">
         <h1 className="text-2xl font-bold">Bem-vindo!</h1>
-        <p className="text-slate-600">Ainda não há salas cadastradas. Comece cadastrando as salas da igreja.</p>
-        <Link href="/admin/salas/nova" className="btn-primario text-base">Cadastre sua primeira sala</Link>
+        {u.admin ? (
+          <>
+            <p className="text-slate-600">Ainda não há salas cadastradas. Comece cadastrando as salas da igreja.</p>
+            <Link href="/admin/salas/nova" className="btn-primario text-base">Cadastre sua primeira sala</Link>
+          </>
+        ) : (
+          <p className="text-slate-600">Ainda não há salas cadastradas. Fale com a secretaria da igreja.</p>
+        )}
       </div>
     );
   }
 
   const { inicio: hojeIni, fim: hojeFim } = limitesDoDia(agora);
   const primeiroGrade = somarDias(`${mes}-01`, -new Date(`${mes}-01T12:00:00Z`).getUTCDay());
-  const [painel, marcadores, itensDia, itensHoje, ocupacao, ranking, fila, cfg] = await Promise.all([
+  const [painel, marcadores, itensDia, itensHoje, ocupacao, ranking, cfg] = await Promise.all([
     obterPainel(agora),
     marcadoresDoPeriodo(primeiroGrade, 42),
     itensAgenda(localParaUtc(dia, '00:00'), localParaUtc(somarDias(dia, 1), '00:00')),
     itensAgenda(hojeIni, hojeFim),
     ocupacaoDasSalas(agora),
     rankingPessoas(agora),
-    db.eventoGoogle.count({ where: { estado: 'NAO_IDENTIFICADO', fimUtc: { gt: agora } } }),
     obterConfiguracao(),
   ]);
   const salasCards = painel.andares.flatMap((a) => a.salas);
@@ -59,17 +66,16 @@ export default async function AdminInicio({ searchParams }: { searchParams: Prom
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Visão geral</h1>
         </div>
         <div className="flex gap-2">
-          <Link href="/admin/salas/nova" className="btn-secundario">Nova sala</Link>
+          {u.admin && <Link href="/admin/salas/nova" className="btn-secundario">Nova sala</Link>}
           <Link href={`/admin/reservas/nova?data=${dia}`} className="btn-primario"><IconeMais className="h-4 w-4" /> Nova reserva</Link>
         </div>
       </div>
 
-      {fila > 0 && (
-        <Link href="/admin/nao-identificados" className="flex items-center gap-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200">
+      {sp.semPermissao && (
+        <p className="flex items-center gap-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200">
           <IconeAlerta className="h-5 w-5 shrink-0" />
-          <span><strong>{fila}</strong> evento(s) do Google sem sala identificada. Toque para vincular.</span>
-          <IconeAvancar className="ml-auto h-4 w-4" />
-        </Link>
+          Essa área é exclusiva da administração.
+        </p>
       )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
@@ -109,7 +115,7 @@ export default async function AdminInicio({ searchParams }: { searchParams: Prom
                           <div className="truncate text-xs text-slate-500">{i.sala.nome}{i.responsavel && ` · ${i.responsavel}`}</div>
                         </div>
                         <span className="hidden sm:block">
-                          {i.status ? <StatusOcorrenciaPill status={i.status} /> : i.tipo === 'google' && <span className="etiqueta bg-slate-100 text-slate-500">Google</span>}
+                          {i.status && <StatusOcorrenciaPill status={i.status} />}
                         </span>
                       </Link>
                     </li>
@@ -218,6 +224,7 @@ export default async function AdminInicio({ searchParams }: { searchParams: Prom
         </section>
       </div>
 
+      {u.admin && (
       <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl px-1 text-xs text-slate-500">
         <span className="inline-flex items-center gap-1.5">
           <IconeRelogio className="h-3.5 w-3.5" />
@@ -226,6 +233,7 @@ export default async function AdminInicio({ searchParams }: { searchParams: Prom
         </span>
         <FormAcao inline acao={acaoSincronizarAgora} botao="Sincronizar agora" classeBotao="btn-secundario text-xs" />
       </section>
+      )}
     </div>
   );
 }

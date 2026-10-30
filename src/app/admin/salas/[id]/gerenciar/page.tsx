@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { exigirAdmin } from '@/lib/usuario';
 import { notFound } from 'next/navigation';
 import QRCode from 'qrcode';
 import { db } from '@/lib/db';
@@ -20,6 +21,7 @@ import {
 } from '../../../acoes';
 
 export default async function GerenciarSala({ params }: { params: Promise<{ id: string }> }) {
+  await exigirAdmin();
   const { id } = await params;
   const sala = await db.sala.findUnique({
     where: { id },

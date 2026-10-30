@@ -10,7 +10,15 @@ export function mascarar(v: string) {
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
 }
 
-export function TelefoneInput({ name = 'telefone', defaultValue = '' }: { name?: string; defaultValue?: string }) {
+export function TelefoneInput({
+  name = 'telefone',
+  defaultValue = '',
+  obrigatorio = true,
+}: {
+  name?: string;
+  defaultValue?: string;
+  obrigatorio?: boolean;
+}) {
   const [valor, setValor] = useState(mascarar(defaultValue));
   return (
     <input
@@ -18,7 +26,7 @@ export function TelefoneInput({ name = 'telefone', defaultValue = '' }: { name?:
       type="tel"
       inputMode="numeric"
       autoComplete="off"
-      required
+      required={obrigatorio}
       placeholder="(67) 99999-9999"
       pattern="\(\d{2}\) \d{4,5}-\d{4}"
       title="Formato (99) 99999-9999"

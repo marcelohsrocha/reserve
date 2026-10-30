@@ -11,6 +11,7 @@ import { verificarConflitos } from './ocupacao';
 import { corDoAndar } from './configuracao';
 import { eventoDaOcorrencia } from './eventos-google';
 import { espelhar, marcarEspelhoCancelado } from './espelho';
+import { atualizarCopiasPessoais } from './agenda-pessoal';
 import { ErroConflito, ErroNegocio } from './erros';
 import { tituloPadronizado } from '@/domain/prefixo';
 
@@ -102,6 +103,8 @@ export async function criarReserva(input: NovaReserva, quem: string, agora = new
       ocorrencias: reserva.ocorrencias.length,
     });
     publicar('reservas', { salaId: sala.id });
+    // Cópia na agenda Google pessoal do responsável (falha aqui não desfaz a reserva).
+    await atualizarCopiasPessoais(reserva.ocorrencias.map((o) => o.id));
     return db.reserva.findUniqueOrThrow({
       where: { id: reserva.id },
       include: { ocorrencias: { orderBy: { inicioUtc: 'asc' } }, pessoa: true },
@@ -126,6 +129,7 @@ export async function editarReserva(id: string, dados: { titulo?: string; pessoa
     await db.eventoGoogle.updateMany({ where: { googleEventId: o.googleEventId }, data: { titulo: tituloPadronizado(o.sala.numero, titulo) } });
   });
   await auditar(quem, 'editar', 'reserva', id, { antes: { titulo: atual.titulo, pessoaId: atual.pessoaId }, depois: dados });
+  await atualizarCopiasPessoais(reserva.ocorrencias.map((o) => o.id));
   publicar('reservas');
   return reserva;
 }
@@ -141,6 +145,7 @@ export async function cancelarOcorrencias(ids: string[], quem: string, motivo = 
     }
     await auditar(quem, 'cancelar', 'ocorrencia', o.id, { reservaId: o.reservaId, motivo });
   });
+  await atualizarCopiasPessoais(ocorrencias.map((o) => o.id));
   if (ocorrencias.length) publicar('reservas');
   return ocorrencias.length;
 }
@@ -229,6 +234,7 @@ export async function transferirOcorrencias(ids: string[], destinoId: string, qu
       });
       if (restantes === 0) await db.reserva.update({ where: { id: rid }, data: { salaId: destino.id } });
     }
+    await atualizarCopiasPessoais(sim.transferidas.map((o) => o.id));
     if (sim.transferidas.length) publicar('reservas');
     return sim;
   });
@@ -271,6 +277,7 @@ export async function remarcarOcorrencia(
       antes: { salaId: o.salaId, inicio: o.inicioUtc, fim: o.fimUtc },
       depois: { salaId: sala.id, inicio: intervalo.inicio, fim: intervalo.fim },
     });
+    await atualizarCopiasPessoais([id]);
     publicar('reservas');
     return atualizada;
   });
@@ -316,5 +323,6 @@ export async function liberarOcorrencia(id: string, quem: string, agora = new Da
     }
   }
   await auditar(quem, 'liberar', 'ocorrencia', id, { fimPrevisto: o.fimUtc, liberadaEm: agora });
+  await atualizarCopiasPessoais([id]);
   publicar('status', { salaId: o.salaId });
 }

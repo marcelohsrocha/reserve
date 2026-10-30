@@ -1,7 +1,9 @@
 import { db } from '@/lib/db';
 import { dataHoraBR } from '@/lib/tempo';
+import { exigirAdmin } from '@/lib/usuario';
 
 export default async function Auditoria({ searchParams }: { searchParams: Promise<{ entidade?: string }> }) {
+  await exigirAdmin();
   const { entidade } = await searchParams;
   const registros = await db.auditoria.findMany({
     where: entidade ? { entidade } : {},

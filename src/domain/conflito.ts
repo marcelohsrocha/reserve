@@ -4,7 +4,7 @@ import type { Intervalo } from './ocorrencias';
 export interface Ocupacao extends Intervalo {
   salaNumero: number;
   titulo: string;
-  origem: 'reserva' | 'bloqueio' | 'google';
+  origem: 'reserva' | 'bloqueio';
   ocorrenciaId?: string | null;
   bloqueioId?: string | null;
   googleEventId?: string | null;

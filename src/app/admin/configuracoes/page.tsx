@@ -3,6 +3,7 @@ import { CORES_GOOGLE } from '@/lib/cores';
 import { obterConfiguracao, andaresUsados } from '@/services/configuracao';
 import { FormAcao } from '@/components/FormAcao';
 import { acaoSalvarConfiguracao } from '../acoes';
+import { exigirAdmin } from '@/lib/usuario';
 
 function SeletorCor({ name, valor, vazio }: { name: string; valor: string; vazio?: string }) {
   return (
@@ -16,6 +17,7 @@ function SeletorCor({ name, valor, vazio }: { name: string; valor: string; vazio
 }
 
 export default async function Configuracoes() {
+  await exigirAdmin();
   const [cfg, andares, cores] = await Promise.all([obterConfiguracao(), andaresUsados(), db.corAndar.findMany()]);
   const cor = new Map(cores.map((c) => [c.andar, c.colorId]));
   return (

@@ -4,7 +4,7 @@ import { minutos } from '@/lib/tempo';
 export type EstadoSala = 'LIVRE' | 'RESERVADA' | 'OCUPADA' | 'BLOQUEADA';
 
 export interface ItemAgenda {
-  tipo: 'reserva' | 'bloqueio' | 'google';
+  tipo: 'reserva' | 'bloqueio';
   inicio: Date;
   fim: Date;
   titulo: string;
@@ -35,7 +35,6 @@ export function situacaoSala(itens: ItemAgenda[], agora: Date): SituacaoSala {
       i.inicio.getTime() - minutos(ANTECEDENCIA_CHECKIN_MIN) <= agora.getTime() &&
       (i.inicio <= agora || i.status === 'CONFIRMADA'),
   );
-  const google = vigentes.find((i) => i.tipo === 'google');
 
   let estado: EstadoSala = 'LIVRE';
   let atual: ItemAgenda | null = null;
@@ -45,9 +44,6 @@ export function situacaoSala(itens: ItemAgenda[], agora: Date): SituacaoSala {
   } else if (reservaPre) {
     estado = reservaPre.status === 'CONFIRMADA' ? 'OCUPADA' : 'RESERVADA';
     atual = reservaPre;
-  } else if (google) {
-    estado = 'OCUPADA';
-    atual = google;
   }
 
   const futuros = ordenados.filter((i) => i.inicio > agora && i !== atual);

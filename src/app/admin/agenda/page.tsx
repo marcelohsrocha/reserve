@@ -2,7 +2,6 @@ import Link from 'next/link';
 import { db } from '@/lib/db';
 import { DIAS_SEMANA, dataLocal, diaSemanaDaData, horaLocal, localParaUtc, somarDias } from '@/lib/tempo';
 import { codigoSala } from '@/domain/sala';
-import { semPrefixo } from '@/domain/prefixo';
 import { CORES_GOOGLE } from '@/lib/cores';
 import { obterConfiguracao } from '@/services/configuracao';
 
@@ -13,7 +12,7 @@ interface Item {
   titulo: string;
   sala: string;
   cor: string;
-  tipo: 'reserva' | 'bloqueio' | 'google';
+  tipo: 'reserva' | 'bloqueio';
   status?: string;
   href?: string;
 }
@@ -36,17 +35,13 @@ export default async function Agenda({ searchParams }: { searchParams: Promise<{
   const sala = salas.find((s) => s.id === sp.sala);
   const corAndar = new Map(cores.map((c) => [c.andar, c.colorId]));
   const hex = (andar: string) => CORES_GOOGLE[corAndar.get(andar) ?? cfg.corPadrao]?.hex ?? '#616161';
-  const porNumero = new Map(salas.map((s) => [s.numero, s]));
 
-  const [ocorrencias, bloqueios, externos] = await Promise.all([
+  const [ocorrencias, bloqueios] = await Promise.all([
     db.ocorrencia.findMany({
       where: { inicioUtc: { lt: fim }, fimUtc: { gt: inicio }, status: { not: 'CANCELADA' }, ...(sala && { salaId: sala.id }) },
       include: { sala: true, reserva: true },
     }),
     db.bloqueio.findMany({ where: { ativo: true, inicioUtc: { lt: fim }, fimUtc: { gt: inicio }, ...(sala && { salaId: sala.id }) }, include: { sala: true } }),
-    db.eventoGoogle.findMany({
-      where: { estado: 'VINCULADO', tipo: 'externo', inicioUtc: { lt: fim }, fimUtc: { gt: inicio }, ...(sala && { salaNumero: sala.numero }) },
-    }),
   ]);
 
   const itens: Item[] = [
@@ -58,10 +53,6 @@ export default async function Agenda({ searchParams }: { searchParams: Promise<{
       id: b.id, inicio: b.inicioUtc, fim: b.fimUtc, titulo: `BLOQUEADA – ${b.motivo}`, sala: codigoSala(b.sala.numero),
       cor: '#64748b', tipo: 'bloqueio' as const, href: `/admin/salas/${b.salaId}`,
     })),
-    ...externos.map((e) => {
-      const s = porNumero.get(e.salaNumero!);
-      return { id: e.googleEventId, inicio: e.inicioUtc, fim: e.fimUtc, titulo: semPrefixo(e.titulo), sala: codigoSala(e.salaNumero!), cor: s ? hex(s.andar) : '#616161', tipo: 'google' as const };
-    }),
   ].sort((a, b) => a.inicio.getTime() - b.inicio.getTime());
 
   // Um item de vários dias (ex.: bloqueio) aparece em cada dia que ele cobre.
@@ -106,7 +97,6 @@ export default async function Agenda({ searchParams }: { searchParams: Promise<{
                 const conteudo = (
                   <>
                     <span className="font-mono">{horaLocal(x.inicio)}–{horaLocal(x.fim)}</span> <strong>{x.sala}</strong> {x.titulo}
-                    {x.tipo === 'google' && <span className="opacity-70"> (Google)</span>}
                   </>
                 );
                 const estilo = { borderLeftColor: x.cor };

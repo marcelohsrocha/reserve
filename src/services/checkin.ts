@@ -6,7 +6,6 @@ import { mascararTelefone, ultimos4 } from '@/lib/telefone';
 import { minutos } from '@/lib/tempo';
 import { ANTECEDENCIA_CHECKIN_MIN, STATUS_ATIVOS } from '@/domain/status';
 import { codigoSala } from '@/domain/sala';
-import { semPrefixo } from '@/domain/prefixo';
 
 export type SituacaoCheckin =
   | { tipo: 'INDISPONIVEL' }
@@ -66,22 +65,12 @@ export async function situacaoCheckin(qrToken: string, agora = new Date()): Prom
     };
   }
 
-  const [proxOc, proxEv] = await Promise.all([
-    db.ocorrencia.findFirst({
-      where: { salaId: sala.id, status: { in: STATUS_ATIVOS }, inicioUtc: { gt: agora } },
-      orderBy: { inicioUtc: 'asc' },
-      include: { reserva: true },
-    }),
-    db.eventoGoogle.findFirst({
-      where: { salaNumero: sala.numero, estado: 'VINCULADO', tipo: 'externo', inicioUtc: { gt: agora } },
-      orderBy: { inicioUtc: 'asc' },
-    }),
-  ]);
-  const candidatos = [
-    proxOc && { titulo: proxOc.reserva.titulo, inicio: proxOc.inicioUtc, fim: proxOc.fimUtc },
-    proxEv && { titulo: semPrefixo(proxEv.titulo), inicio: proxEv.inicioUtc, fim: proxEv.fimUtc },
-  ].filter(Boolean) as { titulo: string; inicio: Date; fim: Date }[];
-  candidatos.sort((a, b) => a.inicio.getTime() - b.inicio.getTime());
+  const proxOc = await db.ocorrencia.findFirst({
+    where: { salaId: sala.id, status: { in: STATUS_ATIVOS }, inicioUtc: { gt: agora } },
+    orderBy: { inicioUtc: 'asc' },
+    include: { reserva: true },
+  });
+  const candidatos = proxOc ? [{ titulo: proxOc.reserva.titulo, inicio: proxOc.inicioUtc, fim: proxOc.fimUtc }] : [];
   return { tipo: 'LIVRE', sala: resumo, proximo: candidatos[0] ?? null };
 }
 

@@ -2,7 +2,7 @@ import { db } from '@/lib/db';
 import { agenda } from '@/integrations/google';
 import { deduplicarOcupacoes, encontrarConflitos, type Conflito, type Ocupacao } from '@/domain/conflito';
 import type { Intervalo } from '@/domain/ocorrencias';
-import { lerPrefixo, semPrefixo } from '@/domain/prefixo';
+import { semPrefixo } from '@/domain/prefixo';
 import { STATUS_ATIVOS } from '@/domain/status';
 
 export interface Ignorar {
@@ -11,9 +11,9 @@ export interface Ignorar {
 }
 
 /**
- * Tudo que ocupa salas na janela: ocorrências ativas e bloqueios locais + eventos da agenda única
- * consultados AO VIVO no Google. Eventos são associados à sala pela propriedade privada `salaNumero`
- * ou, na falta dela, pelo prefixo [Snn] do título. Eventos de salas desativadas ou sem sala não bloqueiam nada.
+ * Tudo que ocupa salas na janela: ocorrências ativas e bloqueios locais + eventos do sistema na
+ * agenda única consultados AO VIVO no Google (pela propriedade privada `salaNumero`), para pegar
+ * qualquer divergência ainda não sincronizada. Eventos sem identificação não bloqueiam nada.
  */
 export async function ocupacoesNaJanela(inicio: Date, fim: Date, ignorar: Ignorar = {}): Promise<Ocupacao[]> {
   const [ocorrencias, bloqueios, salasAtivas, eventos] = await Promise.all([
@@ -66,14 +66,16 @@ export async function ocupacoesNaJanela(inicio: Date, fim: Date, ignorar: Ignora
     if (idsGoogleInativos.has(e.id)) continue;
     if (e.privado.ocorrenciaId && ignorar.ocorrenciaIds?.has(e.privado.ocorrenciaId)) continue;
     if (e.privado.bloqueioId && ignorar.bloqueioIds?.has(e.privado.bloqueioId)) continue;
-    const numero = e.privado.salaNumero ? Number(e.privado.salaNumero) : lerPrefixo(e.titulo);
+    // Só eventos do próprio sistema ocupam salas; os demais são apagados pela sincronização.
+    if (!e.privado.ocorrenciaId && !e.privado.bloqueioId) continue;
+    const numero = Number(e.privado.salaNumero);
     if (!numero || !ativas.has(numero)) continue;
     lista.push({
       salaNumero: numero,
       inicio: e.inicio,
       fim: e.fim,
       titulo: semPrefixo(e.titulo) || e.titulo,
-      origem: e.privado.tipo === 'bloqueio' ? 'bloqueio' : e.privado.tipo === 'reserva' ? 'reserva' : 'google',
+      origem: e.privado.bloqueioId ? 'bloqueio' : 'reserva',
       ocorrenciaId: e.privado.ocorrenciaId ?? null,
       bloqueioId: e.privado.bloqueioId ?? null,
       googleEventId: e.id,

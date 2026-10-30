@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { db } from '@/lib/db';
+import { exigirUsuario } from '@/lib/usuario';
 import { dataBR, dataLocal, horaLocal, DIAS_SEMANA, diaSemanaLocal, dataHoraBR } from '@/lib/tempo';
-import { formatarTelefone } from '@/lib/telefone';
+import { formatarTelefone, mascararTelefone } from '@/lib/telefone';
 import { codigoSala, rotuloSala } from '@/domain/sala';
 import { ROTULO_STATUS, STATUS_ATIVOS, type StatusOcorrencia } from '@/domain/status';
 import { parseDiasSemana } from '@/domain/ocorrencias';
@@ -16,9 +17,10 @@ export default async function Reserva({ params, searchParams }: { params: Promis
     where: { id },
     include: { sala: true, pessoa: true, ocorrencias: { include: { sala: true }, orderBy: { inicioUtc: 'asc' } } },
   });
-  if (!reserva) notFound();
+  const u = await exigirUsuario();
+  if (!reserva || (!u.admin && reserva.pessoaId !== u.id)) notFound();
   const [pessoas, salas] = await Promise.all([
-    db.pessoa.findMany({ orderBy: { nome: 'asc' } }),
+    u.admin ? db.pessoa.findMany({ where: { ativo: true, email: { not: null } }, orderBy: { nome: 'asc' } }) : [],
     db.sala.findMany({ where: { ativa: true }, orderBy: { numero: 'asc' } }),
   ]);
   const agora = new Date();
@@ -31,12 +33,16 @@ export default async function Reserva({ params, searchParams }: { params: Promis
         <h1 className="titulo-pagina mb-0">{reserva.titulo}</h1>
         <Link href="/admin/reservas" className="btn-secundario">← Reservas</Link>
       </div>
-      {criada && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-emerald-900">Reserva criada e enviada ao Google Agenda.</p>}
+      {criada && (
+        <p className="rounded-lg bg-emerald-50 px-3 py-2 text-emerald-900">
+          Reserva criada na agenda do sistema{reserva.pessoa.googleRefreshToken ? ` e na Agenda Google de ${reserva.pessoa.nome}` : ''}.
+        </p>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="cartao space-y-1 text-sm">
           <p><strong>Sala:</strong> {rotuloSala(reserva.sala)}{!reserva.sala.ativa && ' (desativada)'}</p>
-          <p><strong>Responsável:</strong> {reserva.pessoa.nome} · {formatarTelefone(reserva.pessoa.telefoneE164)}</p>
+          <p><strong>Responsável:</strong> {reserva.pessoa.nome} · {u.admin ? formatarTelefone(reserva.pessoa.telefoneE164) : mascararTelefone(reserva.pessoa.telefoneE164)}</p>
           <p><strong>Período:</strong> {reserva.dataInicio.split('-').reverse().join('/')} a {reserva.dataFim.split('-').reverse().join('/')}, das {reserva.horaInicio} às {reserva.horaFim}</p>
           {dias && <p><strong>Dias:</strong> {dias.map((d) => DIAS_SEMANA[d]).join(', ')}</p>}
           <p><strong>Criada por:</strong> {reserva.criadoPor} em {dataHoraBR(reserva.criadaEm)}</p>
@@ -47,9 +53,11 @@ export default async function Reserva({ params, searchParams }: { params: Promis
           <FormAcao acao={acaoEditarReserva} botao="Salvar">
             <input type="hidden" name="id" value={reserva.id} />
             <input name="titulo" defaultValue={reserva.titulo} required className="campo" />
-            <select name="pessoaId" defaultValue={reserva.pessoaId} className="campo">
-              {pessoas.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-            </select>
+            {u.admin && (
+              <select name="pessoaId" defaultValue={reserva.pessoaId} className="campo">
+                {pessoas.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+              </select>
+            )}
           </FormAcao>
         </section>
       </div>

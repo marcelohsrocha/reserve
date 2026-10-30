@@ -28,12 +28,13 @@ async function main() {
   }
   await db.pessoa.createMany({
     data: [
-      { nome: 'Maria Exemplo', telefoneE164: '+5567999990001' },
-      { nome: 'José Fictício', telefoneE164: '+5567988880002' },
+      { nome: 'Admin Dev', email: 'admin@dev.local', papel: 'ADMIN', telefoneE164: '+5567999990000' },
+      { nome: 'Maria Exemplo', email: 'maria@dev.local', telefoneE164: '+5567999990001' },
+      { nome: 'José Fictício', email: 'jose@dev.local' },
     ],
   });
   await db.corAndar.createMany({ data: [{ andar: 'Térreo', colorId: '9' }, { andar: '1º andar', colorId: '2' }] });
-  console.log('Seed de desenvolvimento criado: S01–S03, 2 pessoas.');
+  console.log('Seed de desenvolvimento criado: S01–S03, admin@dev.local (admin), maria@dev.local e jose@dev.local (membros).');
 }
 
 main().finally(() => db.$disconnect());

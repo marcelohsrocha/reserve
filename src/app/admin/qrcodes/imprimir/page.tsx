@@ -3,9 +3,11 @@ import { db } from '@/lib/db';
 import { env } from '@/lib/env';
 import { codigoSala } from '@/domain/sala';
 import { BotaoImprimir } from './BotaoImprimir';
+import { exigirAdmin } from '@/lib/usuario';
 
 /** Folhas A5 prontas para impressão: logo, código em destaque, nome, andar, QR e instrução. */
 export default async function Imprimir({ searchParams }: { searchParams: Promise<{ ids?: string }> }) {
+  await exigirAdmin();
   const { ids } = await searchParams;
   const salas = await db.sala.findMany({
     where: { ativa: true, ...(ids && { id: { in: ids.split(',') } }) },
