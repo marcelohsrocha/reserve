@@ -18,6 +18,8 @@ export interface NovaReserva extends Recorrencia {
   salaId: string;
   pessoaId: string;
   titulo: string;
+  /** Cria só as datas livres e ignora as que conflitam (em vez de recusar tudo). */
+  pularConflitos?: boolean;
 }
 
 const LIMITE_GOOGLE = 5;
@@ -46,11 +48,19 @@ export async function criarReserva(input: NovaReserva, quem: string, agora = new
 
   return comTrava(`sala:${input.salaId}`, async () => {
     const sala = await salaAtiva(input.salaId);
-    const intervalos = gerarOcorrencias(input);
+    let intervalos = gerarOcorrencias(input);
     if (intervalos.some((i) => i.fim <= agora)) throw new ErroNegocio('Não é possível reservar horários que já terminaram.');
 
     const conflitos = await verificarConflitos(sala.numero, intervalos);
-    if (conflitos.length) throw new ErroConflito(conflitos);
+    let puladas = 0;
+    if (conflitos.length && input.pularConflitos) {
+      const ocupados = new Set(conflitos.map((c) => c.pedido));
+      intervalos = intervalos.filter((i) => !ocupados.has(i));
+      puladas = ocupados.size;
+      if (!intervalos.length) throw new ErroConflito(conflitos);
+    } else if (conflitos.length) {
+      throw new ErroConflito(conflitos);
+    }
 
     const reserva = await db.reserva.create({
       data: {
@@ -100,6 +110,7 @@ export async function criarReserva(input: NovaReserva, quem: string, agora = new
       sala: sala.numero,
       titulo,
       ocorrencias: reserva.ocorrencias.length,
+      ...(puladas && { datasPuladasPorConflito: puladas }),
     });
     publicar('reservas', { salaId: sala.id });
     return db.reserva.findUniqueOrThrow({

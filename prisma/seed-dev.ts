@@ -2,15 +2,15 @@
  * Seed SOMENTE para desenvolvimento: 3 salas e 2 pessoas fictícias.
  * Em produção o sistema sobe sem salas; este script se recusa a rodar com NODE_ENV=production.
  */
-import { PrismaClient } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
+import { db } from '../src/lib/db';
 
 if (process.env.NODE_ENV === 'production') {
   console.error('seed:dev não pode ser executado em produção.');
   process.exit(1);
 }
 
-const db = new PrismaClient();
+
 
 async function main() {
   if ((await db.sala.count()) > 0) {

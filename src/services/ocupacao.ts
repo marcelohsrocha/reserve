@@ -1,7 +1,7 @@
 import { db } from '@/lib/db';
 import { agenda } from '@/integrations/google';
 import { deduplicarOcupacoes, encontrarConflitos, type Conflito, type Ocupacao } from '@/domain/conflito';
-import type { Intervalo } from '@/domain/ocorrencias';
+import { gerarOcorrencias, type Intervalo, type Recorrencia } from '@/domain/ocorrencias';
 import { semPrefixo } from '@/domain/prefixo';
 import { STATUS_ATIVOS } from '@/domain/status';
 
@@ -105,4 +105,21 @@ export async function salasLivres(intervalo: Intervalo) {
     ocupacoesNaJanela(intervalo.inicio, intervalo.fim),
   ]);
   return salas.filter((s) => encontrarConflitos(s.numero, [intervalo], ocupacoes).length === 0);
+}
+
+/**
+ * "Quando → onde": para um horário (ou série de datas), quais salas ativas estão livres em
+ * todas as datas e quais têm conflito em parte delas. Uma única consulta à agenda única.
+ */
+export async function mapaDisponibilidade(rec: Recorrencia) {
+  const pedidos = gerarOcorrencias(rec);
+  const { inicio, fim } = envoltoria(pedidos);
+  const [salas, ocupacoes] = await Promise.all([
+    db.sala.findMany({ where: { ativa: true }, orderBy: { numero: 'asc' } }),
+    ocupacoesNaJanela(inicio, fim),
+  ]);
+  return {
+    pedidos,
+    salas: salas.map((sala) => ({ sala, conflitos: encontrarConflitos(sala.numero, pedidos, ocupacoes) })),
+  };
 }

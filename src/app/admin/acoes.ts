@@ -15,6 +15,8 @@ import * as pessoas from '@/services/pessoas';
 import * as reservas from '@/services/reservas';
 import * as bloqueios from '@/services/bloqueios';
 import * as sync from '@/services/sincronizacao';
+import * as ocupacao from '@/services/ocupacao';
+import { codigoSala } from '@/domain/sala';
 import type { Resolucao } from '@/services/resolucao';
 import { dataBR, horaLocal, DIAS_SEMANA, diaSemanaLocal } from '@/lib/tempo';
 
@@ -179,7 +181,49 @@ function dadosReserva(fd: FormData, u: Usuario): reservas.NovaReserva {
     horaInicio: txt(fd, 'horaInicio'),
     horaFim: txt(fd, 'horaFim'),
     diasSemana: parseDiasSemana(fd.getAll('diasSemana').join(',')),
+    pularConflitos: txt(fd, 'pularConflitos') === '1',
   };
+}
+
+export interface SalaNoMapa {
+  id: string;
+  codigo: string;
+  nome: string;
+  andar: string;
+  /** Quantas das datas pedidas estão ocupadas nesta sala. */
+  datasOcupadas: number;
+  conflitos: string[];
+}
+export type MapaDisponibilidade =
+  | { ok: true; total: number; datas: string[]; salas: SalaNoMapa[] }
+  | { ok: false; mensagem: string };
+
+/** Para o formulário "quando → onde": todas as salas ativas e os conflitos de cada uma. */
+export async function acaoMapaDisponibilidade(rec: { dataInicio: string; dataFim: string; horaInicio: string; horaFim: string; diasSemana: number[] }): Promise<MapaDisponibilidade> {
+  try {
+    await usuarioDaAcao();
+    const { pedidos, salas: lista } = await ocupacao.mapaDisponibilidade({ ...rec, diasSemana: rec.diasSemana.length ? rec.diasSemana : null });
+    if (pedidos.some((p) => p.fim <= new Date())) return { ok: false, mensagem: 'Esse horário já passou.' };
+    const datas = pedidos.slice(0, 12).map((o) => `${DIAS_SEMANA[diaSemanaLocal(o.inicio)]} ${dataBR(o.inicio)}`);
+    if (pedidos.length > 12) datas.push(`… e mais ${pedidos.length - 12}`);
+    return {
+      ok: true,
+      total: pedidos.length,
+      datas,
+      salas: lista.map(({ sala, conflitos }) => ({
+        id: sala.id,
+        codigo: codigoSala(sala.numero),
+        nome: sala.nome,
+        andar: sala.andar,
+        datasOcupadas: new Set(conflitos.map((c) => c.pedido)).size,
+        conflitos: conflitos.map(descreverConflito),
+      })),
+    };
+  } catch (e) {
+    if (e instanceof ErroNegocio || e instanceof RecorrenciaInvalida) return { ok: false, mensagem: e.message };
+    console.error(e);
+    return { ok: false, mensagem: 'Não foi possível consultar a agenda agora. Tente de novo em instantes.' };
+  }
 }
 
 export async function acaoVerificarReserva(_: Estado | null, fd: FormData): Promise<Estado> {
