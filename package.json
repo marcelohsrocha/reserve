@@ -13,7 +13,8 @@
     "test:watch": "vitest",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate deploy",
-    "seed:dev": "tsx --env-file-if-exists=.env prisma/seed-dev.ts"
+    "seed:dev": "tsx --env-file-if-exists=.env prisma/seed-dev.ts",
+    "teste:local": "bash scripts/teste-local.sh"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^6.19.3",

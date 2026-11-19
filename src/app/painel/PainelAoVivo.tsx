@@ -39,16 +39,16 @@ export function PainelAoVivo() {
           <img src="/logo.svg" alt="" className="h-10 w-10 rounded bg-white p-1" />
           <div>
             <div className="text-lg font-bold leading-tight sm:text-xl">Salas agora · IPI Dourados</div>
-            <div className="text-sm capitalize text-slate-300">{fmtDiaLongo(agora)}</div>
+            <div className="text-sm text-slate-300">{((t) => t.charAt(0).toUpperCase() + t.slice(1))(fmtDiaLongo(agora))}</div>
           </div>
         </div>
         <div className="flex items-center gap-4">
           {contagem && (
             <div className="hidden gap-3 text-sm md:flex">
-              <span className="text-emerald-400">● {contagem.LIVRE ?? 0} livres</span>
-              <span className="text-amber-300">● {contagem.RESERVADA ?? 0} reservadas</span>
-              <span className="text-red-400">● {contagem.OCUPADA ?? 0} ocupadas</span>
-              <span className="text-slate-400">● {contagem.BLOQUEADA ?? 0} bloqueadas</span>
+              <span className="text-emerald-400">● {contagem.LIVRE ?? 0} {(contagem.LIVRE ?? 0) === 1 ? 'livre' : 'livres'}</span>
+              <span className="text-amber-300">● {contagem.RESERVADA ?? 0} {(contagem.RESERVADA ?? 0) === 1 ? 'reservada' : 'reservadas'}</span>
+              <span className="text-red-400">● {contagem.OCUPADA ?? 0} {(contagem.OCUPADA ?? 0) === 1 ? 'ocupada' : 'ocupadas'}</span>
+              <span className="text-slate-400">● {contagem.BLOQUEADA ?? 0} {(contagem.BLOQUEADA ?? 0) === 1 ? 'bloqueada' : 'bloqueadas'}</span>
             </div>
           )}
           <div className="font-mono text-3xl font-bold tabular-nums sm:text-4xl">{relogio.format(agora)}</div>
