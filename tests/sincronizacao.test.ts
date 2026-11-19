@@ -27,7 +27,7 @@ describe('sincronização reversa com o Google', () => {
 
     // A sala continua livre.
     await expect(reservar(s2.id, ana.id, '19:00', '20:00')).resolves.toBeTruthy();
-    const card = (await obterPainel(t('19:10'))).andares.flatMap((a) => a.salas).find((s) => s.id === s2.id)!;
+    const card = (await obterPainel(t('19:10'), { id: null, admin: true })).andares.flatMap((a) => a.salas).find((s) => s.id === s2.id)!;
     expect(card.atual?.titulo).toBe('Ensaio do louvor');
   });
 

@@ -9,6 +9,7 @@ export interface ItemAgenda {
   fim: Date;
   titulo: string;
   responsavel?: string | null;
+  pessoaId?: string | null; // dono da reserva (privacidade entre membros)
   status?: string; // status da ocorrência (reservas)
 }
 

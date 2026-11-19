@@ -306,7 +306,7 @@ Faça este roteiro com um administrador (e-mail de `ADMIN_EMAILS`) e marque cada
 2. **Configurações:** cor de cada andar no Google Agenda, tolerância do check-in (padrão 15 min) e liberação automática por não comparecimento (liga/desliga).
 3. **QR Codes → Imprimir todos:** uma folha A5 por sala. Cole na porta correspondente.
 4. **Pessoas:** cadastre quem pode reservar com **nome + e-mail da conta Google** e o papel (*Membro* ou *Administrador*). O celular pode ficar em branco: a própria pessoa informa no primeiro acesso.
-5. **TV do painel:** no navegador da TV, entre uma vez com uma conta cadastrada (ex.: a da secretaria), abra `/painel` e clique em **Tela cheia**. A sessão dura 30 dias; depois é só entrar de novo.
+5. **TV do painel:** no navegador da TV, entre uma vez com uma conta de **administrador** (ex.: a da secretaria; com conta de membro a TV mostra só "Reservado" nas salas), abra `/painel` e clique em **Tela cheia**. A sessão dura 30 dias; depois é só entrar de novo.
 6. **Link no app/site da igreja:** use `https://reservas.ipidourados.com.br/admin/reservas/nova`.
    O link precisa abrir **no navegador** (Safari/Chrome ou a janela de navegador que o app abre por cima). Se o app abrir o link numa tela embutida (WebView), **o Google bloqueia o login** por regra de segurança dele.
 

@@ -33,13 +33,18 @@ const txt = (fd: FormData, k: string) => String(fd.get(k) ?? '').trim();
  * `admin: true` restringe a ação à administração; `quem` (auditoria) é o e-mail do usuário.
  */
 async function executar(fn: (quem: string, u: Usuario) => Promise<string | void>, opcoes: { admin?: boolean } = {}): Promise<Estado> {
+  let admin = false;
   try {
     const u = await usuarioDaAcao();
+    admin = u.admin;
     if (opcoes.admin && !u.admin) throw new ErroNegocio('Somente administradores podem fazer isso.');
     const msg = await fn(u.email!, u);
     revalidatePath('/', 'layout');
     return { ok: true, mensagem: msg || 'Salvo.' };
   } catch (e) {
+    if (e instanceof ErroConflito && !admin) {
+      return { ok: false, mensagem: e.message, detalhes: e.conflitos.map((c) => descreverConflito(c, false)) };
+    }
     if (e instanceof ErroNegocio) {
       const detalhes = Array.isArray(e.detalhes) ? (e.detalhes as string[]) : undefined;
       return { ok: false, mensagem: e.message, detalhes };
@@ -201,7 +206,7 @@ export type MapaDisponibilidade =
 /** Para o formulário "quando → onde": todas as salas ativas e os conflitos de cada uma. */
 export async function acaoMapaDisponibilidade(rec: { dataInicio: string; dataFim: string; horaInicio: string; horaFim: string; diasSemana: number[] }): Promise<MapaDisponibilidade> {
   try {
-    await usuarioDaAcao();
+    const u = await usuarioDaAcao();
     const { pedidos, salas: lista } = await ocupacao.mapaDisponibilidade({ ...rec, diasSemana: rec.diasSemana.length ? rec.diasSemana : null });
     if (pedidos.some((p) => p.fim <= new Date())) return { ok: false, mensagem: 'Esse horário já passou.' };
     const datas = pedidos.slice(0, 12).map((o) => `${DIAS_SEMANA[diaSemanaLocal(o.inicio)]} ${dataBR(o.inicio)}`);
@@ -216,7 +221,7 @@ export async function acaoMapaDisponibilidade(rec: { dataInicio: string; dataFim
         nome: sala.nome,
         andar: sala.andar,
         datasOcupadas: new Set(conflitos.map((c) => c.pedido)).size,
-        conflitos: conflitos.map(descreverConflito),
+        conflitos: conflitos.map((c) => descreverConflito(c, u.admin)),
       })),
     };
   } catch (e) {
@@ -228,8 +233,9 @@ export async function acaoMapaDisponibilidade(rec: { dataInicio: string; dataFim
 
 export async function acaoVerificarReserva(_: Estado | null, fd: FormData): Promise<Estado> {
   try {
-    const { ocorrencias, conflitos } = await reservas.previaReserva(dadosReserva(fd, await usuarioDaAcao()));
-    if (conflitos.length) return { ok: false, mensagem: `Conflito em ${conflitos.length} horário(s):`, detalhes: conflitos.map(descreverConflito) };
+    const u = await usuarioDaAcao();
+    const { ocorrencias, conflitos } = await reservas.previaReserva(dadosReserva(fd, u));
+    if (conflitos.length) return { ok: false, mensagem: `Conflito em ${conflitos.length} horário(s):`, detalhes: conflitos.map((c) => descreverConflito(c, u.admin)) };
     const lista = ocorrencias.slice(0, 10).map((o) => `${DIAS_SEMANA[diaSemanaLocal(o.inicio)]} ${dataBR(o.inicio)} ${horaLocal(o.inicio)}–${horaLocal(o.fim)}`);
     if (ocorrencias.length > 10) lista.push(`… e mais ${ocorrencias.length - 10}`);
     return { ok: true, mensagem: `Sala livre. Serão criadas ${ocorrencias.length} ocorrência(s):`, detalhes: lista };

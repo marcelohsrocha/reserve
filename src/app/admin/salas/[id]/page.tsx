@@ -1,3 +1,4 @@
+import { listaParaVisao } from '@/domain/privacidade';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { db } from '@/lib/db';
@@ -55,13 +56,17 @@ export default async function AgendaDaSala({
   const faixa = Array.from({ length: 14 }, (_, i) => somarDias(inicioFaixa, i));
   const base = `/admin/salas/${sala.id}`;
 
-  const [itensFaixa, futuros, painel, faltas90, itensHoje] = await Promise.all([
+  const [itensFaixaTodos, futurosTodos, painel, faltas90, itensHojeTodos] = await Promise.all([
     itensAgenda(localParaUtc(inicioFaixa, '00:00'), localParaUtc(somarDias(inicioFaixa, 14), '00:00'), sala.id),
     itensAgenda(agora, new Date(agora.getTime() + 60 * DIA_MS), sala.id),
-    obterPainel(agora),
+    obterPainel(agora, u),
     db.ocorrencia.count({ where: { salaId: sala.id, status: 'NAO_COMPARECEU', inicioUtc: { gte: new Date(agora.getTime() - 90 * DIA_MS) } } }),
     itensAgenda(localParaUtc(hoje, '00:00'), localParaUtc(somarDias(hoje, 1), '00:00'), sala.id),
   ]);
+  // Membros veem título e responsável só das próprias reservas.
+  const itensFaixa = listaParaVisao(itensFaixaTodos, u);
+  const futuros = listaParaVisao(futurosTodos, u);
+  const itensHoje = listaParaVisao(itensHojeTodos, u);
   const card = painel.andares.flatMap((a) => a.salas).find((s) => s.id === sala.id);
   const doDiaSel = doDia(itensFaixa, dia);
   const proximos = futuros.filter((i) => faseDo(i, agora) !== 'passado').slice(0, 6);

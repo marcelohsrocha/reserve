@@ -15,16 +15,18 @@ Cada sala da igreja tem um código (S01, S02…). As pessoas reservam pelo celul
 
 | | Membro | Administrador |
 |---|---|---|
-| Ver painel, salas livres e agenda | ✓ | ✓ |
+| Ver painel, salas livres e agenda | ✓ (das reservas dos outros, só o horário) | ✓ completo |
 | Reservar (para si mesmo) | ✓ | ✓, e também em nome de outra pessoa |
 | Cancelar, remarcar, transferir, encerrar antes | só as próprias reservas | todas |
 | Cadastrar salas, bloqueios, QR Codes, pessoas, configurações | — | ✓ |
-| Ver auditoria (quem fez o quê) | — | ✓ |
+| Ver auditoria e ranking de uso por pessoa | — | ✓ |
 
 - **Para entrar**, a pessoa precisa estar cadastrada em *Pessoas* com o **e-mail da conta Google** dela (feito por um administrador). Os e-mails da lista fixa de administradores (configurada pelo TI) entram sempre.
 - **No primeiro acesso**, o sistema pede o celular da pessoa. Ele é usado para confirmar presença no QR Code.
 - **Tirar o acesso:** em *Pessoas*, desmarque "Pode entrar no sistema". O histórico de reservas continua guardado.
 - O login dura **30 dias** no mesmo aparelho.
+- **Privacidade entre membros:** quem reserva precisa saber *onde e quando* há sala livre, não *quem* está usando. Por isso o membro vê título e responsável **só das próprias reservas**; as dos outros aparecem apenas como **"Reservado"** com o horário (no painel, na agenda, na tela inicial e nas mensagens de conflito). Bloqueios continuam mostrando o motivo (ex.: "Reforma"), porque não são dado pessoal.
+- **TV do painel:** entre com uma conta de **administrador** para a TV mostrar o nome das atividades. Com conta de membro, a TV mostra só "Reservado".
 
 ---
 
@@ -137,6 +139,7 @@ Todas as telas abertas se atualizam sozinhas quando algo muda (e, por segurança
 
 - O telefone **nunca aparece completo** no painel, na página do QR ou no Google: sempre `(67) 9****-1234`. O número completo só aparece para administradores, na administração.
 - O sistema não acessa a agenda pessoal, os e-mails ou os contatos de ninguém. Do login com Google ele só recebe **nome e e-mail**.
+- Membros não veem o nome de quem reservou as outras salas nem o título dessas reservas (seção 2).
 - A **Auditoria** registra quem criou, editou, transferiu, cancelou, bloqueou, desativou, reativou ou confirmou presença, e quando.
 
 ---

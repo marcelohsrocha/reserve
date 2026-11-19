@@ -2,6 +2,7 @@ import { db } from '@/lib/db';
 import { situacaoSala, type ItemAgenda, type EstadoSala } from '@/domain/painel';
 import { codigoSala } from '@/domain/sala';
 import { STATUS_ATIVOS } from '@/domain/status';
+import { paraVisao, VISAO_ANONIMA, type Visao } from '@/domain/privacidade';
 
 const HORIZONTE_MS = 14 * 86_400_000;
 
@@ -32,8 +33,10 @@ export interface DadosPainel {
   total: number;
 }
 
-const serial = (i: ItemAgenda | null): ItemPainel | null =>
-  i && {
+const serial = (item: ItemAgenda | null, v: Visao): ItemPainel | null => {
+  if (!item) return null;
+  const i = paraVisao(item, v);
+  return {
     tipo: i.tipo,
     titulo: i.titulo,
     responsavel: i.responsavel ?? null,
@@ -41,9 +44,13 @@ const serial = (i: ItemAgenda | null): ItemPainel | null =>
     fim: i.fim.toISOString(),
     status: i.status,
   };
+};
 
-/** Situação de todas as salas ATIVAS agora, agrupadas por andar e ordenadas pelo número. */
-export async function obterPainel(agora = new Date()): Promise<DadosPainel> {
+/**
+ * Situação de todas as salas ATIVAS agora, agrupadas por andar e ordenadas pelo número.
+ * `visao`: membros veem título/responsável só das próprias reservas (ver domain/privacidade).
+ */
+export async function obterPainel(agora = new Date(), visao: Visao = VISAO_ANONIMA): Promise<DadosPainel> {
   const ate = new Date(agora.getTime() + HORIZONTE_MS);
   const salas = await db.sala.findMany({ where: { ativa: true }, orderBy: { numero: 'asc' } });
   const [ocorrencias, bloqueios] = await Promise.all([
@@ -62,6 +69,7 @@ export async function obterPainel(agora = new Date()): Promise<DadosPainel> {
       fim: o.fimUtc,
       titulo: o.reserva.titulo,
       responsavel: o.reserva.pessoa.nome,
+      pessoaId: o.reserva.pessoaId,
       status: o.status,
     });
   }
@@ -79,8 +87,8 @@ export async function obterPainel(agora = new Date()): Promise<DadosPainel> {
       nome: s.nome,
       andar: s.andar,
       estado: sit.estado,
-      atual: serial(sit.atual),
-      proximo: serial(sit.proximo),
+      atual: serial(sit.atual, visao),
+      proximo: serial(sit.proximo, visao),
       livreAte: sit.livreAte?.toISOString() ?? null,
     };
     if (!grupos.has(s.andar)) grupos.set(s.andar, []);

@@ -10,11 +10,17 @@ export class ErroNegocio extends Error {
 
 export class ErroConflito extends ErroNegocio {
   constructor(public conflitos: Conflito[]) {
-    super(`A sala já está ocupada em ${conflitos.length} horário(s).`, conflitos.map(descreverConflito));
+    super(`A sala já está ocupada em ${conflitos.length} horário(s).`, conflitos.map((c) => descreverConflito(c)));
   }
 }
 
-export function descreverConflito(c: Conflito): string {
-  const origem = c.com.origem === 'bloqueio' ? 'bloqueio' : 'reserva';
-  return `${dataBR(c.pedido.inicio)} ${horaLocal(c.pedido.inicio)}–${horaLocal(c.pedido.fim)}: conflita com ${origem} "${c.com.titulo}" (${horaLocal(c.com.inicio)}–${horaLocal(c.com.fim)})`;
+/**
+ * Texto do conflito. `comTitulo: false` (membros) omite o título da reserva de outra pessoa;
+ * o motivo de um bloqueio continua aparecendo, porque não é dado pessoal.
+ */
+export function descreverConflito(c: Conflito, comTitulo = true): string {
+  const quando = `${dataBR(c.pedido.inicio)} ${horaLocal(c.pedido.inicio)}–${horaLocal(c.pedido.fim)}`;
+  const faixa = `${horaLocal(c.com.inicio)}–${horaLocal(c.com.fim)}`;
+  if (c.com.origem === 'bloqueio') return `${quando}: conflita com bloqueio "${c.com.titulo}" (${faixa})`;
+  return comTitulo ? `${quando}: conflita com reserva "${c.com.titulo}" (${faixa})` : `${quando}: sala já reservada das ${faixa.replace('–', ' às ')}`;
 }

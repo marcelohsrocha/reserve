@@ -4,6 +4,8 @@ import { DIAS_SEMANA, dataLocal, diaSemanaDaData, horaLocal, localParaUtc, somar
 import { codigoSala } from '@/domain/sala';
 import { CORES_GOOGLE } from '@/lib/cores';
 import { obterConfiguracao } from '@/services/configuracao';
+import { exigirUsuario } from '@/lib/usuario';
+import { podeVerDetalhes, TITULO_OCULTO } from '@/domain/privacidade';
 
 interface Item {
   id: string;
@@ -19,6 +21,7 @@ interface Item {
 
 export default async function Agenda({ searchParams }: { searchParams: Promise<{ data?: string; modo?: string; sala?: string }> }) {
   const sp = await searchParams;
+  const u = await exigirUsuario();
   const modo = sp.modo === 'dia' ? 'dia' : 'semana';
   const base = sp.data && /^\d{4}-\d{2}-\d{2}$/.test(sp.data) ? sp.data : dataLocal(new Date());
   const primeiro = modo === 'dia' ? base : somarDias(base, -diaSemanaDaData(base));
@@ -45,10 +48,14 @@ export default async function Agenda({ searchParams }: { searchParams: Promise<{
   ]);
 
   const itens: Item[] = [
-    ...ocorrencias.map((o) => ({
-      id: o.id, inicio: o.inicioUtc, fim: o.fimUtc, titulo: o.reserva.titulo, sala: codigoSala(o.sala.numero),
-      cor: hex(o.sala.andar), tipo: 'reserva' as const, status: o.status, href: `/admin/reservas/${o.reservaId}`,
-    })),
+    ...ocorrencias.map((o) => {
+      // Membros veem título (e o link) só das próprias reservas.
+      const ver = podeVerDetalhes(u, o.reserva.pessoaId);
+      return {
+        id: o.id, inicio: o.inicioUtc, fim: o.fimUtc, titulo: ver ? o.reserva.titulo : TITULO_OCULTO, sala: codigoSala(o.sala.numero),
+        cor: hex(o.sala.andar), tipo: 'reserva' as const, status: o.status, href: ver ? `/admin/reservas/${o.reservaId}` : undefined,
+      };
+    }),
     ...bloqueios.map((b) => ({
       id: b.id, inicio: b.inicioUtc, fim: b.fimUtc, titulo: `BLOQUEADA – ${b.motivo}`, sala: codigoSala(b.sala.numero),
       cor: '#64748b', tipo: 'bloqueio' as const, href: `/admin/salas/${b.salaId}`,

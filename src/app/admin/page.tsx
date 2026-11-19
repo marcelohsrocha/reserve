@@ -1,3 +1,4 @@
+import { listaParaVisao } from '@/domain/privacidade';
 import Link from 'next/link';
 import { db } from '@/lib/db';
 import { exigirUsuario } from '@/lib/usuario';
@@ -43,15 +44,19 @@ export default async function AdminInicio({ searchParams }: { searchParams: Prom
 
   const { inicio: hojeIni, fim: hojeFim } = limitesDoDia(agora);
   const primeiroGrade = somarDias(`${mes}-01`, -new Date(`${mes}-01T12:00:00Z`).getUTCDay());
-  const [painel, marcadores, itensDia, itensHoje, ocupacao, ranking, cfg] = await Promise.all([
-    obterPainel(agora),
+  const [painel, marcadores, itensDiaTodos, itensHojeTodos, ocupacao, ranking, cfg] = await Promise.all([
+    obterPainel(agora, u),
     marcadoresDoPeriodo(primeiroGrade, 42),
     itensAgenda(localParaUtc(dia, '00:00'), localParaUtc(somarDias(dia, 1), '00:00')),
     itensAgenda(hojeIni, hojeFim),
     ocupacaoDasSalas(agora),
-    rankingPessoas(agora),
+    // Quem usa as salas (nomes e faltas) é informação da administração.
+    u.admin ? rankingPessoas(agora) : Promise.resolve([]),
     obterConfiguracao(),
   ]);
+  // Membros veem título e responsável só das próprias reservas.
+  const itensDia = listaParaVisao(itensDiaTodos, u);
+  const itensHoje = listaParaVisao(itensHojeTodos, u);
   const salasCards = painel.andares.flatMap((a) => a.salas);
   const doDiaSel = doDia(itensDia, dia);
   const maxHoras = Math.max(1, ...ocupacao.map((o) => o.horas));
@@ -164,7 +169,7 @@ export default async function AdminInicio({ searchParams }: { searchParams: Prom
       </div>
 
       {/* Dados */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      <div className={`grid grid-cols-1 gap-6 ${u.admin ? 'md:grid-cols-2' : ''}`}>
         <section className="cartao">
           <h2 className="text-lg font-bold">Salas mais ocupadas</h2>
           <p className="subtitulo mb-4">Horas reservadas nos últimos e próximos 30 dias</p>
@@ -194,6 +199,7 @@ export default async function AdminInicio({ searchParams }: { searchParams: Prom
           </ol>
         </section>
 
+        {u.admin && (
         <section className="cartao">
           <h2 className="text-lg font-bold">Quem mais usa as salas</h2>
           <p className="subtitulo mb-4">Ocorrências nos últimos 90 dias</p>
@@ -222,6 +228,7 @@ export default async function AdminInicio({ searchParams }: { searchParams: Prom
             </ol>
           )}
         </section>
+        )}
       </div>
 
       {u.admin && (

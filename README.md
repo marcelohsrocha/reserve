@@ -90,6 +90,7 @@ Os testes rodam contra um SQLite descartável (`prisma/test.db`) e a agenda fals
 | `tests/bloqueio.test.ts` | bloqueio por período, transferência das reservas afetadas, remoção |
 | `tests/numero.test.ts` | não reaproveitamento de número (desativação, exclusão, edição) |
 | `tests/sincronizacao.test.ts` | sync reverso, remoção automática de eventos sem identificação (com auditoria e sem loop), histórico preservado, exclusão no Google |
+| `tests/privacidade.test.ts` | membro vê só "Reservado" e o horário das reservas dos outros (painel, conflitos); admin vê tudo; bloqueios continuam visíveis |
 | `tests/quando-onde.test.ts` | mapa de disponibilidade de todas as salas e "reservar só as datas livres" |
 | `tests/link-agenda.test.ts` | link do Google Agenda e arquivo .ics (horário em UTC, escapes, linhas de 75 bytes) |
 | `tests/login.test.ts` | só e-mails cadastrados entram, `ADMIN_EMAILS`, acesso desativado, telefone do 1º acesso, cookie adulterado, redirecionamento seguro |
