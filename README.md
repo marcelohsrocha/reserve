@@ -1,4 +1,4 @@
-# Sistema de Reservas de Salas – IPI Dourados
+# Sistema de Reservas de Salas 
 
 Sistema web de reservas de salas da Igreja Presbiteriana Independente de Dourados. Roda num servidor interno da igreja e é acessado de fora pelo celular através de um **Cloudflare Tunnel**. Cada pessoa **entra com a própria conta Google**. A agenda única do **Google Agenda** é a fonte da verdade. Quem reservou pode **adicionar a reserva à própria agenda** com 1 toque (link do Google Agenda ou arquivo .ics).
 
