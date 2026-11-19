@@ -4,6 +4,9 @@
 #      npm run teste:local -- --zerar (apaga e recria a demonstração)
 set -e
 cd "$(dirname "$0")/.."
+# Tudo que aparece no Terminal também vai para teste-local.log (ajuda a diagnosticar).
+exec > >(tee teste-local.log) 2>&1
+echo "== $(date) =="
 
 if ! command -v node >/dev/null 2>&1; then
   echo "❌ Node.js não encontrado. Instale a versão LTS em https://nodejs.org e rode de novo."
@@ -32,8 +35,14 @@ export GOOGLE_OAUTH_CLIENT_ID=""
 export GOOGLE_OAUTH_CLIENT_SECRET=""
 export ADMIN_EMAILS="admin@dev.local"
 export SESSION_SECRET="teste-local-$(date +%s)-$RANDOM"
+# Primeira porta livre a partir da 3000 (outro projeto pode estar usando a 3000).
+PORTA=3000
+while [ $PORTA -lt 3020 ] && (lsof -nP -iTCP:$PORTA -sTCP:LISTEN >/dev/null 2>&1 || (echo > /dev/tcp/127.0.0.1/$PORTA) >/dev/null 2>&1); do
+  echo "ℹ️  Porta $PORTA ocupada por outro programa; tentando a próxima."
+  PORTA=$((PORTA + 1))
+done
 IP=$( (ipconfig getifaddr en0 || ipconfig getifaddr en1) 2>/dev/null || true)
-export PUBLIC_BASE_URL="http://${IP:-localhost}:3000"
+export PUBLIC_BASE_URL="http://${IP:-localhost}:${PORTA}"
 
 if [ ! -f "$BANCO" ]; then
   echo "🗄️  Criando banco de teste…"
@@ -47,7 +56,7 @@ fi
 
 cat <<MSG
 
-✅ Sistema de teste subindo em ${PUBLIC_BASE_URL}
+✅ Sistema de teste subindo em http://localhost:${PORTA}
 
    Entre com um destes e-mails (login simulado, sem senha):
      admin@dev.local   → administrador (telefone final 0000)
@@ -62,5 +71,5 @@ fi
 echo "   Para parar: Ctrl+C"
 echo
 
-if command -v open >/dev/null 2>&1; then (sleep 8 && open "${PUBLIC_BASE_URL}/entrar") >/dev/null 2>&1 & fi
-exec npx next dev -H 0.0.0.0 -p 3000
+if command -v open >/dev/null 2>&1; then (sleep 10 && open "http://localhost:${PORTA}/entrar") >/dev/null 2>&1 & fi
+npx next dev -H 0.0.0.0 -p "$PORTA" || { echo; echo "❌ O servidor parou com erro. Mande o arquivo teste-local.log para o suporte."; exit 1; }
