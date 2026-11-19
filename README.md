@@ -187,7 +187,7 @@ Os testes rodam contra um SQLite descartável (`prisma/test.db`) e a agenda fals
 | `tests/bloqueio.test.ts` | bloqueio por período, transferência das reservas afetadas, remoção |
 | `tests/numero.test.ts` | não reaproveitamento de número (desativação, exclusão, edição) |
 | `tests/sincronizacao.test.ts` | sync reverso, remoção automática de eventos sem identificação (com auditoria e sem loop), histórico preservado, exclusão no Google |
-| `tests/agenda-pessoal.test.ts` | cópia na agenda do usuário ao reservar, cancelar, remarcar, transferir, liberar, trocar responsável e não comparecer; token revogado |
+| `tests/link-agenda.test.ts` | link do Google Agenda e arquivo .ics (horário em UTC, escapes, linhas de 75 bytes) |
 | `tests/login.test.ts` | só e-mails cadastrados entram, `ADMIN_EMAILS`, acesso desativado, token cifrado, telefone do 1º acesso, cookie adulterado, redirecionamento seguro |
 
 ### Estrutura
