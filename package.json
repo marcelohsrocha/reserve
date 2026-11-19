@@ -50,5 +50,8 @@
     "esbuild@0.28.2": true,
     "esbuild@0.21.5": true,
     "prisma@6.19.3": true
+  },
+  "overrides": {
+    "better-sqlite3": "$better-sqlite3"
   }
 }
