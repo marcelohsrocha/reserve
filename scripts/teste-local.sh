@@ -56,7 +56,7 @@ fi
 
 cat <<MSG
 
-✅ Sistema de teste subindo em http://localhost:${PORTA}
+✅ Sistema de teste subindo em ${PUBLIC_BASE_URL}  (use sempre este endereço)
 
    Entre com um destes e-mails (login simulado, sem senha):
      admin@dev.local   → administrador (telefone final 0000)
@@ -71,5 +71,5 @@ fi
 echo "   Para parar: Ctrl+C"
 echo
 
-if command -v open >/dev/null 2>&1; then (sleep 10 && open "http://localhost:${PORTA}/entrar") >/dev/null 2>&1 & fi
+if command -v open >/dev/null 2>&1; then (sleep 10 && open "${PUBLIC_BASE_URL}/entrar") >/dev/null 2>&1 & fi
 npx next dev -H 0.0.0.0 -p "$PORTA" || { echo; echo "❌ O servidor parou com erro. Mande o arquivo teste-local.log para o suporte."; exit 1; }
