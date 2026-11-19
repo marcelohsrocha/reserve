@@ -1,7 +1,8 @@
 # ---------- dependências ----------
 FROM node:22-alpine AS deps
 WORKDIR /app
-RUN apk add --no-cache openssl
+# python3/make/g++: compilam o better-sqlite3 caso o binário pronto não esteja disponível
+RUN apk add --no-cache openssl python3 make g++
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 

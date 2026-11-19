@@ -16,7 +16,9 @@
     "seed:dev": "tsx --env-file-if-exists=.env prisma/seed-dev.ts"
   },
   "dependencies": {
+    "@prisma/adapter-better-sqlite3": "^6.19.3",
     "@prisma/client": "^6.0.0",
+    "better-sqlite3": "^13.2.0",
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
     "googleapis": "^144.0.0",
@@ -28,6 +30,7 @@
     "zod": "^3.23.0"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^22.0.0",
     "@types/qrcode": "^1.5.5",
     "@types/react": "^19.0.0",
