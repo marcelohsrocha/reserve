@@ -1,6 +1,6 @@
 # Sistema de Reservas de Salas 
 
-Sistema web de reservas de salas da Igreja Presbiteriana Independente de Dourados. Roda num servidor interno da igreja e é acessado de fora pelo celular através de um **Cloudflare Tunnel**. Cada pessoa **entra com a própria conta Google**. A agenda única do **Google Agenda** é a fonte da verdade. Quem reservou pode **adicionar a reserva à própria agenda** com 1 toque (link do Google Agenda ou arquivo .ics).
+Sistema web de reservas de salas. Roda num servidor interno e é acessado de fora pelo celular através de um **Cloudflare Tunnel**. Cada pessoa **entra com a própria conta Google**. A agenda única do **Google Agenda** é a fonte da verdade. Quem reservou pode **adicionar a reserva à própria agenda** com 1 toque (link do Google Agenda ou arquivo .ics).
 
 - **Painel "Agora"** (`/painel`): modo TV, cards por sala e cores de status em tempo real
 - **Salas disponíveis** (`/disponiveis`): livres agora e busca de horários futuros
