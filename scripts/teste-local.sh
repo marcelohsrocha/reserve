@@ -43,6 +43,7 @@ while [ $PORTA -lt 3020 ] && (lsof -nP -iTCP:$PORTA -sTCP:LISTEN >/dev/null 2>&1
 done
 IP=$( (ipconfig getifaddr en0 || ipconfig getifaddr en1) 2>/dev/null || true)
 export PUBLIC_BASE_URL="http://${IP:-localhost}:${PORTA}"
+export TESTE_LOCAL_HOST="${IP:-localhost}"
 
 if [ ! -f "$BANCO" ]; then
   echo "🗄️  Criando banco de teste…"
