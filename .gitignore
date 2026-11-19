@@ -11,3 +11,4 @@ data/
 .claude/
 prisma/teste-local.db*
 teste-local.log
+backups/
