@@ -6,6 +6,8 @@ import { mascararTelefone, ultimos4 } from '@/lib/telefone';
 import { minutos } from '@/lib/tempo';
 import { ANTECEDENCIA_CHECKIN_MIN, STATUS_ATIVOS } from '@/domain/status';
 import { codigoSala } from '@/domain/sala';
+import { liberarOcorrencia } from './reservas';
+import { ErroNegocio } from './erros';
 
 export type SituacaoCheckin =
   | { tipo: 'INDISPONIVEL' }
@@ -16,6 +18,7 @@ export type SituacaoCheckin =
       sala: SalaResumo;
       ocorrencia: { id: string; titulo: string; inicio: Date; fim: Date; status: string; checkinEm: Date | null };
       responsavel: string;
+      responsavelId: string;
       telefoneMascarado: string;
     };
 
@@ -61,6 +64,7 @@ export async function situacaoCheckin(qrToken: string, agora = new Date()): Prom
         checkinEm: vigente.checkinEm,
       },
       responsavel: vigente.reserva.pessoa.nome,
+      responsavelId: vigente.reserva.pessoaId,
       telefoneMascarado: mascararTelefone(vigente.reserva.pessoa.telefoneE164),
     };
   }
@@ -76,32 +80,67 @@ export async function situacaoCheckin(qrToken: string, agora = new Date()): Prom
 
 export type ResultadoCheckin =
   | { ok: true; checkinEm: Date }
-  | { ok: false; motivo: 'LIMITE' | 'DIGITOS' | 'INDISPONIVEL' | 'JA_CONFIRMADA' };
+  | { ok: false; motivo: 'LIMITE' | 'DIGITOS' | 'INDISPONIVEL' | 'JA_CONFIRMADA' | 'SEM_PERMISSAO' | 'NAO_COMECOU' };
 
-/** Confirma presença com os 4 últimos dígitos do telefone do responsável (máx. 5 tentativas/IP/10 min). */
-export async function confirmarCheckin(
-  qrToken: string,
-  digitos: string,
-  ip: string,
-  agora = new Date(),
-): Promise<ResultadoCheckin> {
-  if (!registrarTentativa(`checkin:${ip}`, 5, 10 * 60_000, agora.getTime())) return { ok: false, motivo: 'LIMITE' };
+/** Como a pessoa se identifica na porta: 4 dígitos do telefone ou sessão logada (1 toque). */
+export type Credencial = { digitos: string; ip: string } | { pessoaId: string };
+
+/** Quem está logado pode agir com 1 toque se for o responsável da reserva ou administrador. */
+export async function podeAgirSemDigitos(pessoaId: string | null | undefined, responsavelId: string) {
+  if (!pessoaId) return false;
+  const p = await db.pessoa.findUnique({ where: { id: pessoaId } });
+  if (!p || !p.ativo) return false;
+  return p.id === responsavelId || p.papel === 'ADMIN';
+}
+
+/**
+ * Confere a credencial contra a reserva vigente. Dígitos: máx. 5 tentativas/IP/10 min.
+ * Devolve quem agiu (para a auditoria) ou o motivo da recusa.
+ */
+async function autorizar(qrToken: string, cred: Credencial, agora: Date) {
+  if ('digitos' in cred && !registrarTentativa(`checkin:${cred.ip}`, 5, 10 * 60_000, agora.getTime())) {
+    return { erro: 'LIMITE' as const };
+  }
   const sit = await situacaoCheckin(qrToken, agora);
-  if (sit.tipo !== 'RESERVA') return { ok: false, motivo: 'INDISPONIVEL' };
+  if (sit.tipo !== 'RESERVA') return { erro: 'INDISPONIVEL' as const };
+  if ('digitos' in cred) {
+    const dono = await db.pessoa.findUnique({ where: { id: sit.responsavelId } });
+    if (cred.digitos.replace(/\D/g, '') !== ultimos4(dono?.telefoneE164 ?? null)) return { erro: 'DIGITOS' as const };
+    return { sit, quem: `checkin:${cred.ip}` };
+  }
+  if (!(await podeAgirSemDigitos(cred.pessoaId, sit.responsavelId))) return { erro: 'SEM_PERMISSAO' as const };
+  const p = await db.pessoa.findUniqueOrThrow({ where: { id: cred.pessoaId } });
+  return { sit, quem: p.email ?? p.id };
+}
+
+/** Confirma presença na reserva vigente da sala. */
+export async function confirmarCheckin(qrToken: string, cred: Credencial, agora = new Date()): Promise<ResultadoCheckin> {
+  const a = await autorizar(qrToken, cred, agora);
+  if ('erro' in a) return { ok: false, motivo: a.erro! };
+  const { sit, quem } = a;
   if (sit.ocorrencia.status === 'CONFIRMADA') return { ok: false, motivo: 'JA_CONFIRMADA' };
-
-  const o = await db.ocorrencia.findUniqueOrThrow({
-    where: { id: sit.ocorrencia.id },
-    include: { reserva: { include: { pessoa: true } } },
-  });
-  if (digitos.replace(/\D/g, '') !== ultimos4(o.reserva.pessoa.telefoneE164)) return { ok: false, motivo: 'DIGITOS' };
-
   const r = await db.ocorrencia.updateMany({
-    where: { id: o.id, status: { in: ['AGENDADA', 'EM_ANDAMENTO'] } },
+    where: { id: sit.ocorrencia.id, status: { in: ['AGENDADA', 'EM_ANDAMENTO'] } },
     data: { status: 'CONFIRMADA', checkinEm: agora },
   });
   if (r.count === 0) return { ok: false, motivo: 'INDISPONIVEL' };
-  await auditar(`checkin:${ip}`, 'checkin', 'ocorrencia', o.id, { sala: sit.sala.codigo });
-  publicar('checkin', { ocorrenciaId: o.id });
+  await auditar(quem, 'checkin', 'ocorrencia', sit.ocorrencia.id, { sala: sit.sala.codigo, umToque: 'pessoaId' in cred });
+  publicar('checkin', { ocorrenciaId: sit.ocorrencia.id });
   return { ok: true, checkinEm: agora };
+}
+
+export type ResultadoEncerrar = { ok: true; em: Date } | { ok: false; motivo: Exclude<ResultadoCheckin, { ok: true }>['motivo'] };
+
+/** "Encerrar agora": a atividade acabou mais cedo; a sala fica livre na hora e o evento é encurtado. */
+export async function encerrarPelaPorta(qrToken: string, cred: Credencial, agora = new Date()): Promise<ResultadoEncerrar> {
+  const a = await autorizar(qrToken, cred, agora);
+  if ('erro' in a) return { ok: false, motivo: a.erro! };
+  if (a.sit.ocorrencia.inicio > agora) return { ok: false, motivo: 'NAO_COMECOU' };
+  try {
+    await liberarOcorrencia(a.sit.ocorrencia.id, a.quem, agora);
+  } catch (e) {
+    if (e instanceof ErroNegocio) return { ok: false, motivo: 'INDISPONIVEL' };
+    throw e;
+  }
+  return { ok: true, em: agora };
 }

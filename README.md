@@ -201,3 +201,12 @@ src/lib/             utilitários: fuso, telefone, sessão, cifra, SSE, auditori
 src/app/             páginas e rotas (painel, disponíveis, admin, check-in, APIs)
 tests/               testes automatizados (Vitest)
 ```
+
+## Novidades (18/11/2026)
+
+- **Nova reserva "quando → onde":** a pessoa informa data e horário e o sistema mostra, ao vivo, as salas livres (em todas as datas, se a reserva se repete). Botões de duração (1h, 1h30, 2h, 3h). Em reserva repetida com algumas datas ocupadas, dá para **reservar só as datas livres**.
+- **Check-in com 1 toque:** quem está logado como responsável pela reserva (ou administrador) confirma a presença sem digitar nada. Os 4 dígitos continuam valendo para quem não está logado.
+- **Encerrar agora:** na página do QR, depois do início, a sala pode ser liberada antes do fim (1 toque logado ou 4 dígitos). O evento no Google é encurtado e o painel fica verde na hora.
+- **Adicionar à minha agenda:** substitui a cópia automática na agenda pessoal (veja a seção 1.1).
+- **Prisma sem motor Rust** (driver `better-sqlite3`): o build não depende mais de baixar binários do Prisma para as consultas.
+
