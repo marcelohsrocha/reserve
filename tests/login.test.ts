@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { db } from '@/lib/db';
-import { decifrar } from '@/lib/cripto';
 import { assinarSessao, lerSessao } from '@/lib/sessao';
 import { destinoSeguro } from '@/lib/login';
 import { AcessoNegado, criarPessoa, definirTelefone, editarPessoa, entrarComGoogle } from '@/services/pessoas';
@@ -9,8 +8,6 @@ import { ADMIN } from './helpers';
 const conta = (email: string, extra: Partial<Parameters<typeof entrarComGoogle>[0]> = {}) => ({
   email,
   nome: 'Fulano',
-  refreshToken: 'refresh-secreto',
-  agendaAutorizada: true,
   ...extra,
 });
 
@@ -41,17 +38,6 @@ describe('login com a conta Google', () => {
     await expect(entrarComGoogle(conta('ana@gmail.com'))).rejects.toBeInstanceOf(AcessoNegado);
   });
 
-  it('guarda o refresh token cifrado e o remove se o usuário negar a agenda', async () => {
-    await criarPessoa({ nome: 'Ana', email: 'ana@gmail.com' }, ADMIN);
-    const { pessoa, conectouAgora } = await entrarComGoogle(conta('ana@gmail.com'));
-    expect(conectouAgora).toBe(true);
-    expect(pessoa.googleRefreshToken).not.toContain('refresh-secreto');
-    expect(decifrar(pessoa.googleRefreshToken!)).toBe('refresh-secreto');
-    // Login seguinte sem novo refresh token mantém o que já existe.
-    expect((await entrarComGoogle(conta('ana@gmail.com', { refreshToken: null }))).pessoa.googleRefreshToken).toBe(pessoa.googleRefreshToken);
-    // Desmarcou a permissão da agenda na tela do Google.
-    expect((await entrarComGoogle(conta('ana@gmail.com', { refreshToken: null, agendaAutorizada: false }))).pessoa.googleRefreshToken).toBeNull();
-  });
 
   it('telefone do primeiro acesso é validado e único', async () => {
     const ana = await criarPessoa({ nome: 'Ana', email: 'ana@gmail.com' }, ADMIN);

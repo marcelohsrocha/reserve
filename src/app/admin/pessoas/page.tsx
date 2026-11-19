@@ -86,7 +86,6 @@ export default async function Pessoas({ searchParams }: { searchParams: Promise<
                       {!p.ativo && <span className="etiqueta bg-slate-100 text-slate-500">Sem acesso</span>}
                       <span className="block truncate text-sm text-slate-500">
                         {p.email ?? 'sem e-mail'} · {formatarTelefone(p.telefoneE164)}
-                        {p.googleRefreshToken && ' · 📅 agenda conectada'}
                       </span>
                     </span>
                     <span className="text-xs text-slate-500">

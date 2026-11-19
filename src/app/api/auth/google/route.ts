@@ -10,10 +10,9 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
   if (env.loginDev) return irPara('/entrar');
   const state = randomBytes(24).toString('base64url');
-  const consentir = req.nextUrl.searchParams.get('consentir') === '1';
   const volta = destinoSeguro(req.nextUrl.searchParams.get('volta'));
-  const res = irPara(urlDeLogin(state, consentir));
-  res.cookies.set(COOKIE_OAUTH, JSON.stringify({ state, volta, consentir }), {
+  const res = irPara(urlDeLogin(state));
+  res.cookies.set(COOKIE_OAUTH, JSON.stringify({ state, volta }), {
     httpOnly: true,
     secure: env.publicBaseUrl.startsWith('https://'),
     sameSite: 'lax',

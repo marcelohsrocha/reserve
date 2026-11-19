@@ -8,6 +8,8 @@ import { codigoSala, rotuloSala } from '@/domain/sala';
 import { ROTULO_STATUS, STATUS_ATIVOS, type StatusOcorrencia } from '@/domain/status';
 import { parseDiasSemana } from '@/domain/ocorrencias';
 import { FormAcao } from '@/components/FormAcao';
+import { linkGoogleAgenda } from '@/domain/link-agenda';
+import { eventoParaAgendaPessoal } from '@/services/eventos-google';
 import { acaoCancelarOcorrencia, acaoCancelarReserva, acaoEditarReserva, acaoRemarcarOcorrencia, acaoTransferirReserva } from '../../acoes';
 
 export default async function Reserva({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ criada?: string }> }) {
@@ -33,10 +35,17 @@ export default async function Reserva({ params, searchParams }: { params: Promis
         <h1 className="titulo-pagina mb-0">{reserva.titulo}</h1>
         <Link href="/admin/reservas" className="btn-secundario">← Reservas</Link>
       </div>
-      {criada && (
-        <p className="rounded-lg bg-emerald-50 px-3 py-2 text-emerald-900">
-          Reserva criada na agenda do sistema{reserva.pessoa.googleRefreshToken ? ` e na Agenda Google de ${reserva.pessoa.nome}` : ''}.
-        </p>
+      {criada && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-emerald-900">Reserva criada e registrada na agenda do sistema.</p>}
+
+      {ativas.length > 0 && (
+        <section className="flex flex-wrap items-center gap-3 rounded-2xl bg-sky-50 px-4 py-3 text-sm text-sky-900 ring-1 ring-sky-200">
+          <span className="text-lg">📅</span>
+          <span className="flex-1">Quer um lembrete? Adicione {ativas.length > 1 ? `as ${ativas.length} datas` : 'esta reserva'} à sua agenda.</span>
+          {ativas.length === 1 ? (
+            <a href={linkGoogleAgenda(eventoParaAgendaPessoal(ativas[0]!.sala, reserva, ativas[0]!))} target="_blank" rel="noopener" className="btn-secundario">Google Agenda</a>
+          ) : null}
+          <a href={`/api/reservas/${reserva.id}/ics`} className="btn-secundario">{ativas.length === 1 ? 'iPhone / Outlook (.ics)' : 'Adicionar todas (.ics)'}</a>
+        </section>
       )}
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -97,6 +106,9 @@ export default async function Reserva({ params, searchParams }: { params: Promis
                   </span>
                   <span className="flex items-center gap-2">
                     <span className="etiqueta bg-slate-100">{ROTULO_STATUS[o.status as StatusOcorrencia]}</span>
+                    {ativa && (
+                      <a href={linkGoogleAgenda(eventoParaAgendaPessoal(o.sala, reserva, o))} target="_blank" rel="noopener" title="Adicionar ao Google Agenda" className="text-xs text-igreja underline">+ agenda</a>
+                    )}
                     {ativa && (
                       <FormAcao inline acao={acaoCancelarOcorrencia} botao="Cancelar" classeBotao="btn-secundario" confirmar="Cancelar esta ocorrência?">
                         <input type="hidden" name="id" value={o.id} />

@@ -8,7 +8,6 @@ import { agenda, SyncTokenInvalido, type EventoAgenda } from '@/integrations/goo
 import { STATUS_ATIVOS } from '@/domain/status';
 import { obterConfiguracao } from './configuracao';
 import { espelhar } from './espelho';
-import { atualizarCopiasPessoais } from './agenda-pessoal';
 
 const SISTEMA = 'google-agenda';
 
@@ -34,7 +33,6 @@ export async function processarEvento(ev: EventoAgenda, agora = new Date()): Pro
     if (ocorrencia && STATUS_ATIVOS.includes(ocorrencia.status as never) && ocorrencia.fimUtc > agora) {
       await db.ocorrencia.update({ where: { id: ocorrencia.id }, data: { status: 'CANCELADA' } });
       await auditar(SISTEMA, 'cancelar', 'ocorrencia', ocorrencia.id, { motivo: 'evento removido no Google Agenda' });
-      await atualizarCopiasPessoais([ocorrencia.id]);
     }
     if (bloqueio?.ativo) {
       await db.bloqueio.update({ where: { id: bloqueio.id }, data: { ativo: false } });
@@ -49,7 +47,6 @@ export async function processarEvento(ev: EventoAgenda, agora = new Date()): Pro
     if (mudouHorario && STATUS_ATIVOS.includes(ocorrencia.status as never)) {
       await db.ocorrencia.update({ where: { id: ocorrencia.id }, data: { inicioUtc: ev.inicio, fimUtc: ev.fim } });
       await auditar(SISTEMA, 'remarcar', 'ocorrencia', ocorrencia.id, { inicio: ev.inicio, fim: ev.fim, motivo: 'alterado no Google Agenda' });
-      await atualizarCopiasPessoais([ocorrencia.id]);
     }
     await espelhar(ev.id, {
       titulo: ev.titulo,

@@ -43,7 +43,7 @@ model Pessoa {
   telefoneE164       String?   @unique // informado no primeiro acesso; usado no check-in
   papel              String    @default("MEMBRO")
   ativo              Boolean   @default(true)
-  googleRefreshToken String? // cifrado (AES-256-GCM); permite gravar na agenda pessoal
+  googleRefreshToken String? // sem uso desde a migração 0004 (agenda pessoal removida)
   agendaConectadaEm  DateTime?
   ultimoAcessoEm     DateTime?
   criadaEm           DateTime  @default(now())

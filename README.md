@@ -1,6 +1,6 @@
 # Sistema de Reservas de Salas – IPI Dourados
 
-Sistema web de reservas de salas da Igreja Presbiteriana Independente de Dourados. Roda num servidor interno da igreja e é acessado de fora pelo celular através de um **Cloudflare Tunnel**. Cada pessoa **entra com a própria conta Google**. A agenda única do **Google Agenda** é a fonte da verdade, e cada reserva também vai para a **agenda pessoal** de quem reservou.
+Sistema web de reservas de salas da Igreja Presbiteriana Independente de Dourados. Roda num servidor interno da igreja e é acessado de fora pelo celular através de um **Cloudflare Tunnel**. Cada pessoa **entra com a própria conta Google**. A agenda única do **Google Agenda** é a fonte da verdade. Quem reservou pode **adicionar a reserva à própria agenda** com 1 toque (link do Google Agenda ou arquivo .ics).
 
 - **Painel "Agora"** (`/painel`): modo TV, cards por sala e cores de status em tempo real
 - **Salas disponíveis** (`/disponiveis`): livres agora e busca de horários futuros
@@ -22,23 +22,20 @@ Stack: Next.js 15 (App Router) + TypeScript · SQLite + Prisma · Tailwind · SS
 6. Anote o **e-mail da conta de serviço** (algo como `reservas-salas@ipi-reservas.iam.gserviceaccount.com`).
 
 ### 1.1 Tela de consentimento e cliente OAuth (login com Google)
-A conta de serviço grava na agenda do sistema. O login das pessoas e a cópia na agenda pessoal usam OAuth:
+A conta de serviço grava na agenda do sistema. O login das pessoas usa OAuth, só para identificar a conta (sem acesso à agenda pessoal):
 
 1. **APIs e serviços → Tela de consentimento OAuth** (ou *Google Auth Platform → Branding*):
    - Tipo de usuário: **Externo** (os membros usam contas @gmail.com).
    - Nome do app: `Reservas de Salas – IPI Dourados`, e-mail de suporte e logo.
    - Domínios autorizados: o domínio do `PUBLIC_BASE_URL` (ex.: `suaigreja.org.br`).
-   - Escopos (*Data access*): `openid`, `.../auth/userinfo.email`, `.../auth/userinfo.profile` e **`.../auth/calendar.events`**.
+   - Escopos (*Data access*): `openid`, `.../auth/userinfo.email`, `.../auth/userinfo.profile`. **Não adicione `calendar.events`**: o sistema não grava na agenda pessoal.
 2. **Credenciais → Criar credenciais → ID do cliente OAuth → Aplicativo da Web**:
    - URI de redirecionamento autorizado: **`https://reservas.suaigreja.org.br/api/auth/google/callback`** (o `PUBLIC_BASE_URL` + `/api/auth/google/callback`).
    - Copie o **ID do cliente** para `GOOGLE_OAUTH_CLIENT_ID` e a **chave secreta** para `GOOGLE_OAUTH_CLIENT_SECRET`.
 3. Gere o segredo da sessão com `openssl rand -hex 32` e coloque em `SESSION_SECRET`. Ele assina o cookie de login e cifra (AES-256-GCM) os tokens das agendas pessoais guardados no banco. **Se ele mudar, todos precisam entrar de novo e reconectar a agenda.**
 4. Em `ADMIN_EMAILS`, liste os e-mails que sempre entram como administradores (ex.: o do pastor e o da secretaria). Eles não precisam ser cadastrados antes.
 
-> **Publicação do app no Google — leia antes de liberar para a igreja.**
-> - Enquanto o app estiver em **"Em teste"**, só entram as contas cadastradas como *usuários de teste* (até 100) e o Google **expira o acesso à agenda pessoal a cada 7 dias**. O login continua funcionando; a pessoa só precisa clicar em "Conectar a Agenda Google" de novo.
-> - Para uso normal, clique em **Publicar app**. Como `calendar.events` é um escopo **sensível**, o Google pede uma **verificação** (política de privacidade publicada, vídeo curto mostrando o uso). Até ela sair, quem entra vê o aviso "O Google não verificou este app" (dá para prosseguir em *Avançado*) e há um limite de 100 usuários.
-> - O sistema só **cria, altera e apaga os eventos que ele mesmo criou** na agenda pessoal; não lê os outros compromissos da pessoa.
+> **Publicação do app no Google.** Depois de testar, clique em **Publicar app**. Como o login usa só escopos básicos (`openid`, e-mail e perfil), o Google **não exige verificação** do app e não há limite de usuários nem expiração semanal. Enquanto estiver "Em teste", só entram as contas cadastradas como *usuários de teste*.
 
 ## 2. Agenda única "Reservas de Salas – IPI Dourados"
 
@@ -131,15 +128,13 @@ Uma reserva tem data inicial e final e um horário. Quando as datas são diferen
 Status: `AGENDADA → EM_ANDAMENTO → CONFIRMADA (check-in) → FINALIZADA`, além de `CANCELADA` e `NAO_COMPARECEU`.
 
 ### Login
-- **Entrar com Google** (OAuth 2.0, escopos `openid email profile calendar.events`). O `state` anti-CSRF fica num cookie curto; o `id_token` é verificado e só e-mails **verificados** entram.
+- **Entrar com Google** (OAuth 2.0, escopos `openid email profile`). O `state` anti-CSRF fica num cookie curto; o `id_token` é verificado e só e-mails **verificados** entram.
 - Só entra quem está cadastrado em **Pessoas** (pelo e-mail) e com acesso ativo, ou quem está em `ADMIN_EMAILS`.
 - A sessão é um cookie `HttpOnly` assinado (HS256, 30 dias) que guarda só o id da pessoa; papel e acesso são lidos do banco a cada página e ação, então tirar o acesso vale na hora.
 - No primeiro acesso a pessoa informa o celular, usado no check-in.
 
 ### Google Agenda
-- **Duas agendas por reserva.** Cada ocorrência vira um evento na agenda única do sistema (conta de serviço) e uma **cópia na agenda principal do responsável** (com o token OAuth dele, guardado cifrado). A cópia tem o mesmo título e local, sem telefone, e explica que alterações são feitas pelo sistema.
-- A cópia acompanha tudo: cancelar, remarcar, transferir de sala, trocar o responsável (sai de uma agenda e entra na outra), liberar antes do fim (encurta) e não comparecimento (some). Quem conectar a agenda depois recebe as reservas futuras que já tinha.
-- Falha na agenda pessoal **não desfaz a reserva**: ela fica registrada no log. Se a pessoa revogar o acesso (ou o token expirar), a agenda é desconectada e aparece o aviso "Conecte a sua Agenda Google". Se a pessoa apagar a cópia da própria agenda, o sistema não recria.
+- **Adicionar à minha agenda:** na página da reserva, link do Google Agenda (por data) e arquivo `.ics` com todas as datas futuras (`/api/reservas/{id}/ics`). É um lembrete criado pelo próprio usuário; alterações feitas depois no sistema não atualizam esse evento.
 - Cada evento da agenda do sistema leva o título `[S03] Título`, `location` "S03 – Nome (Andar)", a cor do andar e as propriedades privadas `salaNumero`, `reservaId`, `ocorrenciaId` (ou `bloqueioId`) e `tipo`. A descrição traz o responsável com o telefone mascarado.
 - **Conflito por sala**: antes de gravar, o sistema confere reservas e bloqueios locais e consulta a agenda única ao vivo (`events.list`, `singleEvents=true`) na faixa das ocorrências, considerando os eventos do sistema pela propriedade `salaNumero`. O `freebusy` não é usado porque não diferencia salas. Uma única consulta cobre a faixa inteira de uma reserva de vários dias.
 - **Sincronização reversa**: um canal `events.watch` chama `/api/google/webhook` (validado pelo `X-Goog-Channel-Token`). O sistema faz sync incremental com `syncToken`, renova o canal 24 h antes de expirar e, como reserva, faz *polling* a cada 2 minutos.
@@ -158,7 +153,7 @@ O QR aponta para `/checkin/{token}`. A página mostra a ocorrência vigente (que
 ### Segurança e LGPD
 - O telefone nunca aparece completo nos painéis, no check-in ou no Google (sempre `(67) 9****-1234`). O número completo só aparece no cadastro de pessoas, dentro do `/admin`.
 - O log de auditoria (`/admin/auditoria`) registra quem entrou, criou, editou, transferiu, cancelou, bloqueou, desativou ou reativou o quê, e quando, além dos eventos removidos da agenda. O "quem" é o e-mail da conta Google logada.
-- Os refresh tokens das agendas pessoais ficam cifrados no banco (AES-256-GCM, chave derivada de `SESSION_SECRET`). Ao desconectar a agenda, o token é revogado no Google.
+- O sistema não guarda tokens de acesso às contas Google das pessoas (só o e-mail e o nome do login).
 - Credenciais e IDs ficam só no `.env` e em `secrets/`, nunca no código.
 
 ## 8. Desenvolvimento
@@ -171,7 +166,7 @@ npm run seed:dev          # 3 salas e 2 pessoas fictícias (recusa rodar em prod
 npm run dev               # http://localhost:3000
 ```
 
-Sem credenciais do Google (ou com `GOOGLE_FAKE=1`), o app usa uma **agenda falsa em memória**, que permite testar tudo sem tocar no Google real. Sem `GOOGLE_OAUTH_CLIENT_ID`, em desenvolvimento a tela `/entrar` tem um **login simulado** pelo e-mail (com agenda pessoal falsa); ele não existe em produção. O seed cria `admin@dev.local` (admin) e `maria@dev.local` (membro).
+Sem credenciais do Google (ou com `GOOGLE_FAKE=1`), o app usa uma **agenda falsa em memória**, que permite testar tudo sem tocar no Google real. Sem `GOOGLE_OAUTH_CLIENT_ID`, em desenvolvimento a tela `/entrar` tem um **login simulado** pelo e-mail; ele não existe em produção. O seed cria `admin@dev.local` (admin) e `maria@dev.local` (membro).
 
 ### Testes
 
@@ -201,7 +196,7 @@ Os testes rodam contra um SQLite descartável (`prisma/test.db`) e a agenda fals
 prisma/              schema, migrações e seed de desenvolvimento
 src/domain/          regras puras: ocorrências, conflito, prefixo, status, situação do painel
 src/services/        casos de uso: salas, reservas, bloqueios, sync com o Google, jobs, check-in…
-src/integrations/    Google: agenda do sistema, agenda pessoal (OAuth) e login (real e falso em memória)
+src/integrations/    Google: agenda do sistema e login (real e falso em memória)
 src/lib/             utilitários: fuso, telefone, sessão, cifra, SSE, auditoria, trava, rate limit
 src/app/             páginas e rotas (painel, disponíveis, admin, check-in, APIs)
 tests/               testes automatizados (Vitest)

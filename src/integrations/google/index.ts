@@ -26,4 +26,3 @@ export function agendaFalsa(): AgendaFalsa {
 }
 
 export * from './gateway';
-export { agendaPessoal, agendasPessoaisFalsas, tokenRevogado } from './pessoal';

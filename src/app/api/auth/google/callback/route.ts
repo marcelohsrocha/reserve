@@ -2,7 +2,6 @@ import { timingSafeEqual } from 'node:crypto';
 import type { NextRequest } from 'next/server';
 import { trocarCodigo } from '@/integrations/google/oauth';
 import { AcessoNegado, entrarComGoogle } from '@/services/pessoas';
-import { copiarReservasFuturas } from '@/services/agenda-pessoal';
 import { COOKIE_OAUTH, concluirLogin, destinoSeguro, irPara } from '@/lib/login';
 
 export const dynamic = 'force-dynamic';
@@ -15,7 +14,7 @@ function mesmoValor(a: string, b: string) {
 
 export async function GET(req: NextRequest) {
   const p = req.nextUrl.searchParams;
-  let salvo: { state?: string; volta?: string; consentir?: boolean } = {};
+  let salvo: { state?: string; volta?: string } = {};
   try {
     salvo = JSON.parse(req.cookies.get(COOKIE_OAUTH)?.value ?? '{}');
   } catch {
@@ -29,13 +28,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const conta = await trocarCodigo(code);
-    const { pessoa, conectouAgora } = await entrarComGoogle(conta);
-    // Autorizou a agenda mas o Google não mandou refresh token (já havia consentido antes e o
-    // token foi perdido): pede o consentimento de novo, uma única vez.
-    if (conta.agendaAutorizada && !pessoa.googleRefreshToken && !salvo.consentir) {
-      return irPara(`/api/auth/google?consentir=1&volta=${encodeURIComponent(volta)}`);
-    }
-    if (conectouAgora) await copiarReservasFuturas(pessoa.id);
+    const { pessoa } = await entrarComGoogle(conta);
     const res = await concluirLogin(pessoa, volta);
     res.cookies.delete({ name: COOKIE_OAUTH, path: '/api/auth' });
     return res;

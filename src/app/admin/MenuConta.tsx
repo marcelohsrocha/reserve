@@ -1,8 +1,5 @@
-import { FormAcao } from '@/components/FormAcao';
-import { acaoDesconectarAgenda } from './acoes';
-
-/** Menu da conta logada: papel, situação da agenda pessoal e sair. */
-export function MenuConta({ nome, email, admin, agendaConectada }: { nome: string; email: string; admin: boolean; agendaConectada: boolean }) {
+/** Menu da conta logada: papel e sair. */
+export function MenuConta({ nome, email, admin }: { nome: string; email: string; admin: boolean }) {
   const iniciais = nome.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]!.toUpperCase()).join('');
   return (
     <details className="relative ml-1">
@@ -15,16 +12,6 @@ export function MenuConta({ nome, email, admin, agendaConectada }: { nome: strin
           <p className="font-semibold">{nome}</p>
           <p className="truncate text-slate-500">{email}</p>
           <span className={`etiqueta mt-2 ${admin ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'}`}>{admin ? 'Administrador' : 'Membro'}</span>
-        </div>
-        <div className="rounded-xl bg-slate-50 p-3">
-          {agendaConectada ? (
-            <>
-              <p className="text-slate-700">📅 Suas reservas são copiadas para a sua Agenda Google.</p>
-              <FormAcao acao={acaoDesconectarAgenda} botao="Desconectar agenda" classeBotao="mt-2 text-xs text-slate-500 underline" confirmar="Parar de copiar as reservas para a sua Agenda Google?" />
-            </>
-          ) : (
-            <a href="/api/auth/google?consentir=1" className="text-igreja underline">Conectar a Agenda Google</a>
-          )}
         </div>
         <form action="/api/auth/sair" method="post">
           <button className="btn-secundario w-full">Sair</button>

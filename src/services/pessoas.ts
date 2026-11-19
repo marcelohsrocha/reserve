@@ -1,6 +1,5 @@
 import { db } from '@/lib/db';
 import { auditar } from '@/lib/auditoria';
-import { cifrar } from '@/lib/cripto';
 import { env } from '@/lib/env';
 import { normalizarTelefone, formatarTelefone } from '@/lib/telefone';
 import { ErroNegocio } from './erros';
@@ -68,8 +67,6 @@ export async function editarPessoa(
       ...v,
       papel: papelEfetivo(v.email, v.papel),
       ativo: dados.ativo ?? antes.ativo,
-      // Trocar o e-mail desvincula a conta Google anterior.
-      ...(antes.email !== v.email && { googleRefreshToken: null, agendaConectadaEm: null }),
     },
   });
   await auditar(quem, 'editar', 'pessoa', id, {
@@ -91,9 +88,9 @@ export class AcessoNegado extends Error {}
 
 /**
  * Login com Google: só entra quem foi cadastrado por um admin (pelo e-mail) ou está em
- * ADMIN_EMAILS. Guarda o refresh token cifrado quando o usuário autorizou a agenda.
+ * ADMIN_EMAILS.
  */
-export async function entrarComGoogle(conta: { email: string; nome: string; refreshToken: string | null; agendaAutorizada: boolean }) {
+export async function entrarComGoogle(conta: { email: string; nome: string }) {
   const email = conta.email.toLowerCase();
   let pessoa = await db.pessoa.findUnique({ where: { email } });
   const adminFixo = env.adminEmails.includes(email);
@@ -104,19 +101,12 @@ export async function entrarComGoogle(conta: { email: string; nome: string; refr
   }
   if (!pessoa.ativo) throw new AcessoNegado();
 
-  const conectouAgora = Boolean(conta.refreshToken && conta.agendaAutorizada);
   const atualizada = await db.pessoa.update({
     where: { id: pessoa.id },
-    data: {
-      ultimoAcessoEm: new Date(),
-      ...(adminFixo && { papel: 'ADMIN' }),
-      ...(conectouAgora && { googleRefreshToken: cifrar(conta.refreshToken!), agendaConectadaEm: new Date() }),
-      // O usuário desmarcou a permissão da agenda na tela do Google.
-      ...(!conta.agendaAutorizada && { googleRefreshToken: null, agendaConectadaEm: null }),
-    },
+    data: { ultimoAcessoEm: new Date(), ...(adminFixo && { papel: 'ADMIN' }) },
   });
-  await auditar(email, 'entrar', 'pessoa', pessoa.id, { agenda: Boolean(atualizada.googleRefreshToken) });
-  return { pessoa: atualizada, conectouAgora };
+  await auditar(email, 'entrar', 'pessoa', pessoa.id);
+  return { pessoa: atualizada };
 }
 
 /** Primeiro acesso (ou troca pelo próprio usuário): telefone usado no check-in. */
@@ -128,7 +118,3 @@ export async function definirTelefone(id: string, telefone: string, quem: string
   await auditar(quem, 'definir_telefone', 'pessoa', id);
 }
 
-export async function desconectarAgenda(id: string, quem: string) {
-  await db.pessoa.update({ where: { id }, data: { googleRefreshToken: null, agendaConectadaEm: null } });
-  await auditar(quem, 'desconectar_agenda', 'pessoa', id);
-}

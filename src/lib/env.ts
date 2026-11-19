@@ -17,7 +17,7 @@ export const env = {
   get jobsDesligados() {
     return process.env.JOBS_DISABLED === '1';
   },
-  /** Cliente OAuth do Google (login dos usuários + gravação na agenda pessoal). */
+  /** Cliente OAuth do Google (login dos usuários). */
   get oauthClientId() {
     return process.env.GOOGLE_OAUTH_CLIENT_ID ?? '';
   },
@@ -27,7 +27,7 @@ export const env = {
   get oauthRedirectUri() {
     return `${this.publicBaseUrl}/api/auth/google/callback`;
   },
-  /** Assina o cookie de sessão e deriva a chave que cifra os refresh tokens. */
+  /** Assina o cookie de sessão. */
   get sessionSecret() {
     const s = process.env.SESSION_SECRET ?? '';
     if (s) return s;

@@ -34,18 +34,19 @@ export function eventoDoBloqueio(sala: Sala, b: Bloqueio, colorId: string): Dado
   };
 }
 
-/** Cópia do evento gravada na agenda Google pessoal do responsável. */
-export function eventoPessoal(sala: Sala, reserva: Reserva, o: Pick<Ocorrencia, 'id' | 'inicioUtc' | 'fimUtc'>): DadosEvento {
+
+/** Evento para o próprio usuário adicionar à agenda dele (link do Google ou .ics). */
+export function eventoParaAgendaPessoal(sala: Sala, reserva: Reserva, o: Pick<Ocorrencia, 'id' | 'inicioUtc' | 'fimUtc'>) {
   return {
+    uid: o.id,
     titulo: tituloPadronizado(sala.numero, reserva.titulo),
     inicio: o.inicioUtc,
     fim: o.fimUtc,
-    location: `${locationSala(sala)} – IPI Dourados`,
-    descricao:
+    local: `${locationSala(sala)} – IPI Dourados`,
+    detalhes:
       'Sua reserva de sala na IPI Dourados.\n' +
-      'Ao chegar, leia o QR Code da porta e confirme com os 4 últimos dígitos do seu telefone ' +
+      'Ao chegar, leia o QR Code da porta e confirme a presença ' +
       '(sem confirmação logo após o início, a sala volta a ficar livre).\n' +
-      'Alterações e cancelamentos devem ser feitos pelo Sistema de Reservas; esta é só uma cópia.',
-    privado: { tipo: 'copia-reserva', reservaId: reserva.id, ocorrenciaId: o.id },
+      'Alterações e cancelamentos são feitos no Sistema de Reservas; este evento é só um lembrete.',
   };
 }

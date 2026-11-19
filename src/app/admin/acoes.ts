@@ -4,8 +4,6 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { usuarioDaAcao, usuarioOpcional, type Usuario } from '@/lib/usuario';
 import { env } from '@/lib/env';
-import { decifrar } from '@/lib/cripto';
-import { revogar } from '@/integrations/google/oauth';
 import { localParaUtc } from '@/lib/tempo';
 import { db } from '@/lib/db';
 import { auditar } from '@/lib/auditoria';
@@ -317,10 +315,3 @@ export async function acaoDefinirTelefone(_: Estado | null, fd: FormData): Promi
   redirect(txt(fd, 'volta').startsWith('/') && !txt(fd, 'volta').startsWith('//') ? txt(fd, 'volta') : '/admin');
 }
 
-export async function acaoDesconectarAgenda(_: Estado | null, _fd: FormData) {
-  return executar(async (quem, u) => {
-    if (u.googleRefreshToken && !env.loginDev) await revogar(decifrar(u.googleRefreshToken)).catch(() => {});
-    await pessoas.desconectarAgenda(u.id, quem);
-    return 'Agenda pessoal desconectada. Novas reservas não serão mais copiadas para ela.';
-  });
-}

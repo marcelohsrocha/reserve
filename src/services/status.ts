@@ -4,7 +4,6 @@ import { publicar } from '@/lib/barramento';
 import { agenda } from '@/integrations/google';
 import { proximoStatus, STATUS_ATIVOS } from '@/domain/status';
 import { obterConfiguracao } from './configuracao';
-import { atualizarCopiasPessoais } from './agenda-pessoal';
 
 const SISTEMA = 'sistema';
 
@@ -40,8 +39,6 @@ export async function atualizarStatus(agora = new Date()) {
     }
   }
 
-  // Sem check-in a reserva caiu: a cópia some da agenda pessoal do responsável.
-  await atualizarCopiasPessoais(faltas);
 
   // Bloqueios que começaram ou terminaram desde o último minuto.
   const umMinutoAtras = new Date(agora.getTime() - 61_000);
