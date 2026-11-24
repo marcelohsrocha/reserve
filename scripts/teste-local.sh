@@ -72,5 +72,35 @@ fi
 echo "   Para parar: Ctrl+C"
 echo
 
-if command -v open >/dev/null 2>&1; then (sleep 10 && open "${PUBLIC_BASE_URL}/entrar") >/dev/null 2>&1 & fi
-npx next dev -H 0.0.0.0 -p "$PORTA" || { echo; echo "❌ O servidor parou com erro. Mande o arquivo teste-local.log para o suporte."; exit 1; }
+# Sobe o servidor em segundo plano para poder "aquecer" as telas antes de abrir o navegador.
+npx next dev -H 0.0.0.0 -p "$PORTA" &
+SERVIDOR=$!
+trap 'kill $SERVIDOR 2>/dev/null; exit 0' INT TERM
+
+BASE="http://127.0.0.1:${PORTA}"
+for _ in $(seq 1 60); do curl -s -o /dev/null "$BASE/api/health" && break; sleep 1; done
+
+# No modo de teste, cada tela é montada na primeira visita e o navegador recarrega quando isso
+# acontece — se for no meio do login, ele volta para a tela de entrada. Por isso o script entra
+# sozinho uma vez e visita as telas principais ANTES de abrir o navegador.
+echo "⏳ Preparando as telas (uns 20 segundos na primeira vez)…"
+COOKIES=$(mktemp)
+curl -s -o /dev/null -c "$COOKIES" "$BASE/entrar"
+curl -s -o /dev/null -b "$COOKIES" -c "$COOKIES" -X POST --data-urlencode "email=admin@dev.local" "$BASE/api/auth/dev"
+for TELA in /admin /painel /disponiveis /admin/reservas /admin/reservas/nova /admin/agenda /admin/salas /admin/pessoas /admin/qrcodes /admin/configuracoes /admin/auditoria /api/painel; do
+  curl -s -o /dev/null -b "$COOKIES" "$BASE$TELA" || true
+done
+SALA=$(node -e '
+  const D = require("better-sqlite3"); const b = new D("prisma/teste-local.db", { readonly: true });
+  const s = b.prepare("select id, qrToken from Sala where ativa = 1 order by numero limit 1").get();
+  if (s) console.log(s.id + " " + s.qrToken);' 2>/dev/null || true)
+if [ -n "$SALA" ]; then
+  curl -s -o /dev/null -b "$COOKIES" "$BASE/admin/salas/${SALA%% *}" || true
+  curl -s -o /dev/null "$BASE/checkin/${SALA##* }" || true
+fi
+rm -f "$COOKIES"
+echo "✅ Pronto! Abrindo ${PUBLIC_BASE_URL}/entrar"
+echo
+
+if command -v open >/dev/null 2>&1; then open "${PUBLIC_BASE_URL}/entrar" >/dev/null 2>&1 || true; fi
+wait $SERVIDOR || { echo; echo "❌ O servidor parou com erro. Mande o arquivo teste-local.log para o suporte."; exit 1; }
