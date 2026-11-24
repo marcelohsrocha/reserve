@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 
 const LINKS: readonly (readonly [string, string, boolean])[] = [
   ['/admin', 'Início', false],
-  ['/admin/salas', 'Salas', false],
+  ['/admin/salas', 'Salas', true],
   ['/admin/reservas', 'Reservas', false],
   ['/admin/agenda', 'Agenda', false],
   ['/admin/pessoas', 'Pessoas', true],

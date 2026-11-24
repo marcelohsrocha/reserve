@@ -19,7 +19,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             </span>
           </Link>
           <div className="flex items-center gap-1 text-sm">
-            <Link href="/painel" className="hidden rounded-full px-3 py-1.5 text-slate-600 hover:bg-slate-100 sm:inline">Painel</Link>
+            {u.admin && <Link href="/painel" className="hidden rounded-full px-3 py-1.5 text-slate-600 hover:bg-slate-100 sm:inline">Painel</Link>}
             <Link href="/disponiveis" className="hidden rounded-full px-3 py-1.5 text-slate-600 hover:bg-slate-100 sm:inline">Disponíveis</Link>
             <MenuConta nome={u.nome} email={u.email!} admin={u.admin} />
           </div>

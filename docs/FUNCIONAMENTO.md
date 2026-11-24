@@ -15,7 +15,8 @@ Cada sala da igreja tem um código (S01, S02…). As pessoas reservam pelo celul
 
 | | Membro | Administrador |
 |---|---|---|
-| Ver painel, salas livres e agenda | ✓ (das reservas dos outros, só o horário) | ✓ completo |
+| Ver salas livres e agenda | ✓ (das reservas dos outros, só o horário) | ✓ completo |
+| Painel "Agora" (TV), gerenciar salas, estatísticas de uso | — | ✓ |
 | Reservar (para si mesmo) | ✓ | ✓, e também em nome de outra pessoa |
 | Cancelar, remarcar, transferir, encerrar antes | só as próprias reservas | todas |
 | Cadastrar salas, bloqueios, QR Codes, pessoas, configurações | — | ✓ |
@@ -26,7 +27,8 @@ Cada sala da igreja tem um código (S01, S02…). As pessoas reservam pelo celul
 - **Tirar o acesso:** em *Pessoas*, desmarque "Pode entrar no sistema". O histórico de reservas continua guardado.
 - O login dura **30 dias** no mesmo aparelho.
 - **Privacidade entre membros:** quem reserva precisa saber *onde e quando* há sala livre, não *quem* está usando. Por isso o membro vê título e responsável **só das próprias reservas**; as dos outros aparecem apenas como **"Reservado"** com o horário (no painel, na agenda, na tela inicial e nas mensagens de conflito). Bloqueios continuam mostrando o motivo (ex.: "Reforma"), porque não são dado pessoal.
-- **TV do painel:** entre com uma conta de **administrador** para a TV mostrar o nome das atividades. Com conta de membro, a TV mostra só "Reservado".
+- **O painel do membro é enxuto:** início com as próprias reservas e as salas, *Reservas*, *Agenda* e *Disponíveis*. Painel de TV, gerenciamento de salas e estatísticas de uso (salas mais ocupadas, quem mais usa) aparecem só para administradores.
+- **TV do painel:** entre com uma conta de **administrador** (o `/painel` não abre para membros).
 
 ---
 
@@ -34,7 +36,7 @@ Cada sala da igreja tem um código (S01, S02…). As pessoas reservam pelo celul
 
 | Tela | Endereço | Para quê |
 |---|---|---|
-| **Painel "Agora"** | `/painel` | Modo TV: um cartão por sala, agrupado por andar, com cores e relógio. Atualiza sozinho. |
+| **Painel "Agora"** (só administradores) | `/painel` | Modo TV: um cartão por sala, agrupado por andar, com cores e relógio. Atualiza sozinho. |
 | **Salas disponíveis** | `/disponiveis` | Salas livres agora ("livre até 19:00") e busca de horário futuro. |
 | **Administração** | `/admin` | Início, reservas, agenda semanal, salas, pessoas, QR Codes, configurações e auditoria (conforme o perfil). |
 | **Nova reserva** | `/admin/reservas/nova` | Formulário de reserva. É o link para colocar no app/site da igreja. |

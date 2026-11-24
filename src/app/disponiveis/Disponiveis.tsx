@@ -19,7 +19,7 @@ function linkReserva(salaId: string, data?: string, inicio?: string, fim?: strin
   return `/admin/reservas/nova?${q}`;
 }
 
-export function Disponiveis() {
+export function Disponiveis({ admin }: { admin: boolean }) {
   const { dados } = useAoVivo<DadosPainel>('/api/painel');
   const agora = useAgora(30_000);
   const [andar, setAndar] = useState('');
@@ -61,7 +61,7 @@ export function Disponiveis() {
           <h1 className="text-xl font-bold sm:text-2xl">Salas disponíveis</h1>
         </div>
         <div className="flex gap-2 text-sm">
-          <a href="/painel" className="btn-secundario">Painel</a>
+          {admin && <a href="/painel" className="btn-secundario">Painel</a>}
           <a href="/admin" className="btn-secundario">Administração</a>
         </div>
       </header>

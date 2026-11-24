@@ -49,7 +49,8 @@ export default async function AdminInicio({ searchParams }: { searchParams: Prom
     marcadoresDoPeriodo(primeiroGrade, 42),
     itensAgenda(localParaUtc(dia, '00:00'), localParaUtc(somarDias(dia, 1), '00:00')),
     itensAgenda(hojeIni, hojeFim),
-    ocupacaoDasSalas(agora),
+    // Estatísticas de uso (salas mais ocupadas e quem mais usa) são da administração.
+    u.admin ? ocupacaoDasSalas(agora) : Promise.resolve([]),
     // Quem usa as salas (nomes e faltas) é informação da administração.
     u.admin ? rankingPessoas(agora) : Promise.resolve([]),
     obterConfiguracao(),
@@ -135,7 +136,7 @@ export default async function AdminInicio({ searchParams }: { searchParams: Prom
         <aside className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold">Salas</h2>
-            <Link href="/admin/salas" className="text-sm text-igreja hover:underline">Gerenciar todas</Link>
+            {u.admin && <Link href="/admin/salas" className="text-sm text-igreja hover:underline">Gerenciar todas</Link>}
           </div>
           <div className="grid grid-cols-2 gap-3">
             {salasCards.map((s) => {
@@ -168,8 +169,9 @@ export default async function AdminInicio({ searchParams }: { searchParams: Prom
         </aside>
       </div>
 
-      {/* Dados */}
-      <div className={`grid grid-cols-1 gap-6 ${u.admin ? 'md:grid-cols-2' : ''}`}>
+      {/* Dados (só administração) */}
+      {u.admin && (
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <section className="cartao">
           <h2 className="text-lg font-bold">Salas mais ocupadas</h2>
           <p className="subtitulo mb-4">Horas reservadas nos últimos e próximos 30 dias</p>
@@ -199,7 +201,6 @@ export default async function AdminInicio({ searchParams }: { searchParams: Prom
           </ol>
         </section>
 
-        {u.admin && (
         <section className="cartao">
           <h2 className="text-lg font-bold">Quem mais usa as salas</h2>
           <p className="subtitulo mb-4">Ocorrências nos últimos 90 dias</p>
@@ -228,8 +229,8 @@ export default async function AdminInicio({ searchParams }: { searchParams: Prom
             </ol>
           )}
         </section>
-        )}
       </div>
+      )}
 
       {u.admin && (
       <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl px-1 text-xs text-slate-500">
